@@ -1,0 +1,42 @@
+services:
+
+  app:
+    build: .
+    container_name: kyrgyz-learn
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    env_file:  #прочитать из .env + создать все переменные из .env вне зависимости от объявления в docker-compose
+      - .env
+    depends_on:
+      - postgres
+
+  #  5433 — порт на твоём компьютере/сервере
+  #  5432 — порт PostgreSQL внутри контейнера
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432" # "ПОРТ_ХОСТА:ПОРТ_КОНТЕЙНЕРА"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kyrgyz_learn}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  postgres_data:
+  minio_data:

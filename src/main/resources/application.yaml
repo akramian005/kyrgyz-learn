@@ -1,3 +1,46 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
   application:
     name: kyrgyz-learn
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:5432/${POSTGRES_DB:kyrgyz-learn}
+    #    url: jdbc:postgresql://postgres:5433/${POSTGRES_DB:kyrgyz_learn} #подключение к бд в докер где хост 5433 но бд 5432
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  web:
+    error:
+      include-message: always #при запуске спринг через docker нужно включить
+      include-stacktrace: always
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:8s6tn0h9s4WWLopNHv9Gi2HqHCSKiOxOvCCkPL6O5GQ=}
+    #    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    expiration-ms: ${JWT_EXPIRATION_MS:31536000000}
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.schema: DEBUG
+
+minio:
+  url: http://${MINIO_HOST:localhost}:${MINIO_API_PORT:9000}
+  public-url: http://${MINIO_PUBLIC_HOST:localhost}:${MINIO_API_PORT:9000}
+  access-key: ${MINIO_ROOT_USER:minioadmin}
+  secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
+  bucket: ${MINIO_BUCKET:product-images}

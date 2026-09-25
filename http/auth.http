@@ -1,0 +1,78 @@
+@host = {{host}}
+
+########################################################################
+
+### в верхнем правом углу в intelij выбрать Run with → dev для того чтобы брать host из http-client.json
+
+########################################################################
+### ADMIN — Регистрация
+### В БД поменять ROLE ADMIN
+### Токен сохраняется в глобальную переменную user_token
+########################################################################
+
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "admin@gmail.com",
+  "password": "12345678"
+}
+
+> {%
+    client.global.set("admin_token", response.body.token);
+%}
+########################################################################
+### ADMIN — Логин
+###
+### Токен сохраняется в глобальную переменную admin_token
+########################################################################
+
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@gmail.com",
+  "password": "12345678"
+}
+
+> {%
+    client.global.set("admin_token", response.body.token);
+%}
+
+
+########################################################################
+### USER — Регистрация
+###
+### Токен сохраняется в глобальную переменную user_token
+########################################################################
+
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "user@gmail.com",
+  "password": "12345678"
+}
+
+> {%
+    client.global.set("user_token", response.body.token);
+%}
+
+
+########################################################################
+### USER — Логин
+###
+### Токен сохраняется в глобальную переменную user_token
+########################################################################
+
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user@gmail.com",
+  "password": "12345678"
+}
+
+> {%
+    client.global.set("user_token", response.body.token);
+%}
