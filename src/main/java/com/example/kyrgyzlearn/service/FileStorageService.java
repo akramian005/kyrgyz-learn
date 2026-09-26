@@ -7,11 +7,17 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
+import java.net.URI;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -31,9 +37,23 @@ public class FileStorageService {
     @Value("${minio.bucket}")
     private String bucket;
 
+    @Value("${minio.public-url}")
+    private String publicUrl;
+
+    @Value("${minio.access-key}")
+    private String accessKey;
+
+    @Value("${minio.secret-key}")
+    private String secretKey;
+
+    private static final Set<String> LOCAL_HOSTS = Set.of("localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1");
+
+    // клиенты для подписи ссылок под разные адреса (localhost, IP компьютера в сети и т.п.)
+    private final Map<String, MinioClient> presignClients = new ConcurrentHashMap<>();
+
     // --- Методы для картинок ---
     public String uploadImage(String folder, MultipartFile file) {
-        return uploadFile(folder, file, "image/", 5 * 1024 * 1024);
+        return uploadFile(folder, file, "image/", 10 * 1024 * 1024); // Лимит 10 МБ: скриншоты с телефонов бывают тяжёлыми
     }
 
     // --- Методы для аудио ---
@@ -81,7 +101,7 @@ public class FileStorageService {
 
     public String getPresignedUrl(String objectKey) {
         try {
-            return publicMinioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            return presignClientForCurrentRequest().getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(bucket)
                     .object(objectKey)
@@ -91,6 +111,39 @@ public class FileStorageService {
             log.error("Failed to generate presigned URL for object {}", objectKey, e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate file URL");
         }
+    }
+
+    /*
+     * Адрес в ссылке входит в её подпись, поэтому подменить его потом на клиенте нельзя.
+     * Если MINIO_PUBLIC_HOST не задан (localhost), подписываем ссылку на тот адрес, по которому
+     * клиент пришёл к бэкенду: телефон ходит на IP компьютера (192.168.x.x:8080) и получает
+     * ссылку на 192.168.x.x:9000, а браузер на этом же компьютере — на localhost:9000.
+     * Если MINIO_PUBLIC_HOST задан явно (например, домен на сервере), используется он.
+     */
+    private MinioClient presignClientForCurrentRequest() {
+        URI configured = URI.create(publicUrl);
+        if (!LOCAL_HOSTS.contains(configured.getHost())) {
+            return publicMinioClient;
+        }
+
+        String requestHost = currentRequestHost();
+        if (requestHost == null || LOCAL_HOSTS.contains(requestHost)) {
+            return publicMinioClient;
+        }
+
+        String endpoint = configured.getScheme() + "://" + requestHost + ":" + configured.getPort();
+        return presignClients.computeIfAbsent(endpoint, e -> MinioClient.builder()
+                .endpoint(e)
+                .credentials(accessKey, secretKey)
+                .region("us-east-1") // с явным регионом подпись считается без запроса к MinIO
+                .build());
+    }
+
+    private String currentRequestHost() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            return attributes.getRequest().getServerName();
+        }
+        return null;
     }
 
     public void delete(String objectKey) {

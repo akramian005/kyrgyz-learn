@@ -91,7 +91,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/courses/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/courses/**").authenticated()
 
-                        // Уроки — та же логика, права по владельцу курса проверяет LessonService
+                        // Уроки (+ вопросы и сообщения) — та же логика, права по владельцу курса проверяют LessonService, QuestionService, LessonMessageService
                         .requestMatchers(HttpMethod.GET, "/api/lessons/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/lessons/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/lessons/**").authenticated()

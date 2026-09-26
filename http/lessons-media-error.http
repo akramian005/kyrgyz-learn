@@ -1,0 +1,74 @@
+@lesson_id = 1
+@question_id = 1
+@message_id = 1
+
+########################################################################
+############################  АУДИО ВОПРОСА  ##########################
+########################################################################
+
+### Загрузить аудио — не аудиофайл (ожидаем 400)
+POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/audio
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{admin_token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="document.txt"
+Content-Type: text/plain
+
+Это не аудио
+--WebAppBoundary--
+
+########################################################################
+### Загрузить аудио к несуществующему вопросу (ожидаем 404)
+POST {{host}}/api/lessons/{{lesson_id}}/questions/999/audio
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{admin_token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="question.wav"
+Content-Type: audio/wav
+
+< audio/question.wav
+--WebAppBoundary--
+
+########################################################################
+### Загрузить аудио к вопросу в чужом уроке (ожидаем 403)
+POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/audio
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{other_user_token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="question.wav"
+Content-Type: audio/wav
+
+< audio/question.wav
+--WebAppBoundary--
+
+
+########################################################################
+######################  КАРТИНКА И АУДИО СООБЩЕНИЯ  ###################
+########################################################################
+
+### Загрузить картинку сообщению, которого не существует (ожидаем 404)
+POST {{host}}/api/lessons/{{lesson_id}}/messages/999/image
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{admin_token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="explain.jpeg"
+Content-Type: image/jpeg
+
+< images/explain.jpeg
+--WebAppBoundary--
+
+########################################################################
+### Загрузить картинку сообщению без токена (ожидаем 401)
+POST {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}/image
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="explain.jpeg"
+Content-Type: image/jpeg
+
+< images/explain.jpeg
+--WebAppBoundary--

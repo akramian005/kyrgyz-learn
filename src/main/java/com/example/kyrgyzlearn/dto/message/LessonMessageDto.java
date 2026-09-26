@@ -1,23 +1,19 @@
-package com.example.kyrgyzlearn.dto.lesson;
+package com.example.kyrgyzlearn.dto.message;
 
+import com.example.kyrgyzlearn.dto.lesson.LessonItemDto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import com.example.kyrgyzlearn.entity.lesson.QuestionType;
-
-import java.util.List;
-
-public record QuestionDto(
+public record LessonMessageDto(
         Long id,
         Integer position,
         String text,
-        String audioUrl,
-        QuestionType type,
-        List<AnswerOptionDto> options
+        String imageUrl,
+        String audioUrl
 ) implements LessonItemDto {
     // без @JsonProperty Jackson не видит kind(): это не компонент record и не getter
     @Override
     @JsonProperty("kind")
     public String kind() {
-        return "QUESTION";
+        return "MESSAGE";
     }
 }

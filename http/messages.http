@@ -1,0 +1,53 @@
+@host = {{host}}
+@lesson_id = 1
+@message_id = 1
+
+########################################################################
+####################  СООБЩЕНИЯ-ОБЪЯСНЕНИЯ  ###########################
+########################################################################
+
+### Добавить сообщение-объяснение между вопросами
+POST {{host}}/api/lessons/{{lesson_id}}/messages
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "text": "Отлично! Теперь разберём глагол to be."
+}
+
+########################################################################
+### Вставить сообщение в начало урока (position — место в уроке, 0 = первым; без position — в конец)
+POST {{host}}/api/lessons/{{lesson_id}}/messages
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "text": "«Салам» — так здороваются в Кыргызстане",
+  "position": 0
+}
+
+########################################################################
+### Обновить текст сообщения
+PATCH {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "text": "Обновлённый текст объяснения"
+}
+
+########################################################################
+### Удалить сообщение
+DELETE {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}
+Authorization: Bearer {{admin_token}}
+
+
+########################################################################
+### Переместить сообщение (или вопрос) на новое место в уроке — остальные шаги сдвигаются
+PATCH {{host}}/api/lessons/{{lesson_id}}/items/{{message_id}}/position
+Content-Type: application/json
+Authorization: Bearer {{admin_token}}
+
+{
+  "position": 0
+}

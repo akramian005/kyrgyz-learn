@@ -1,4 +1,4 @@
-package com.example.kyrgyzlearn.dto.lesson;
+package com.example.kyrgyzlearn.dto.message;
 
 import jakarta.validation.constraints.NotBlank;
 
