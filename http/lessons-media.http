@@ -1,92 +1,21 @@
-@host = {{host}}
 @lesson_id = 1
 @question_id = 1
-@option_id = 1
 @message_id = 1
 
 ########################################################################
 ############################  АУДИО ВОПРОСА  ##########################
 ########################################################################
 
-### Загрузить аудио к вопросу
+### Загрузить аудио к вопросу (WAV)
 POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/audio
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 Authorization: Bearer {{admin_token}}
 
 --WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="question.mp3"
-Content-Type: audio/mpeg
+Content-Disposition: form-data; name="file"; filename="question.wav"
+Content-Type: audio/wav
 
 < audio/question.wav
---WebAppBoundary--
-
-########################################################################
-### Загрузить аудио — не аудиофайл (ожидаем 400)
-POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/audio
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-Authorization: Bearer {{admin_token}}
-
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="document.txt"
-Content-Type: text/plain
-
-Это не аудио
---WebAppBoundary--
-
-########################################################################
-### Загрузить аудио к несуществующему вопросу (ожидаем 404)
-POST {{host}}/api/lessons/{{lesson_id}}/questions/999/audio
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-Authorization: Bearer {{admin_token}}
-
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="question.mp3"
-Content-Type: audio/mpeg
-
-< audio/question.mp3
---WebAppBoundary--
-
-########################################################################
-### Загрузить аудио к вопросу в чужом уроке (ожидаем 403)
-POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/audio
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-Authorization: Bearer {{other_user_token}}
-
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="question.mp3"
-Content-Type: audio/mpeg
-
-< audio/question.mp3
---WebAppBoundary--
-
-
-########################################################################
-########################  КАРТИНКА ВАРИАНТА ОТВЕТА  ###################
-########################################################################
-
-### Загрузить картинку к варианту ответа
-POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/options/{{option_id}}/image
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-Authorization: Bearer {{admin_token}}
-
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="option.jpeg"
-Content-Type: image/jpeg
-
-< images/option.jpeg
---WebAppBoundary--
-
-########################################################################
-### Загрузить картинку к несуществующему варианту (ожидаем 404)
-POST {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/options/999/image
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-Authorization: Bearer {{admin_token}}
-
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="option.jpeg"
-Content-Type: image/jpeg
-
-< images/option.jpeg
 --WebAppBoundary--
 
 
@@ -107,42 +36,35 @@ Content-Type: image/jpeg
 --WebAppBoundary--
 
 ########################################################################
-### Загрузить аудио к сообщению-объяснению
+### Загрузить аудио к сообщению-объяснению (WAV)
 POST {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}/audio
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 Authorization: Bearer {{admin_token}}
 
 --WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="explain.mp3"
-Content-Type: audio/mpeg
+Content-Disposition: form-data; name="file"; filename="explain.wav"
+Content-Type: audio/wav
 
-< audio/explain.mp3
+< audio/explain.wav
 --WebAppBoundary--
 
 ########################################################################
-### Загрузить картинку сообщению, которого не существует (ожидаем 404)
-POST {{host}}/api/lessons/{{lesson_id}}/messages/999/image
-Content-Type: multipart/form-data; boundary=WebAppBoundary
+#########################  УДАЛЕНИЕ МЕДИА  ############################
+########################################################################
+
+### Убрать аудио у вопроса
+DELETE {{host}}/api/lessons/{{lesson_id}}/questions/{{question_id}}/audio
 Authorization: Bearer {{admin_token}}
 
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="explain.jpeg"
-Content-Type: image/jpeg
-
-< images/explain.jpeg
---WebAppBoundary--
+########################################################################
+### Убрать картинку у сообщения
+DELETE {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}/image
+Authorization: Bearer {{admin_token}}
 
 ########################################################################
-### Загрузить картинку сообщению без токена (ожидаем 401)
-POST {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}/image
-Content-Type: multipart/form-data; boundary=WebAppBoundary
-
---WebAppBoundary
-Content-Disposition: form-data; name="file"; filename="explain.jpeg"
-Content-Type: image/jpeg
-
-< images/explain.jpeg
---WebAppBoundary--
+### Убрать аудио у сообщения
+DELETE {{host}}/api/lessons/{{lesson_id}}/messages/{{message_id}}/audio
+Authorization: Bearer {{admin_token}}
 
 
 ########################################################################

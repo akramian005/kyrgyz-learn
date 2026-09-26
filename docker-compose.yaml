@@ -12,17 +12,17 @@ services:
 
   #  5433 — порт на твоём компьютере/сервере
   #  5432 — порт PostgreSQL внутри контейнера
-  postgres:
-    image: postgres:17-alpine
-    container_name: postgres
-    ports:
-      - "${POSTGRES_HOST_PORT:-5433}:5432" # "ПОРТ_ХОСТА:ПОРТ_КОНТЕЙНЕРА"
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-kyrgyz_learn}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+#  postgres:
+#    image: postgres:17-alpine
+#    container_name: postgres
+#    ports:
+#      - "${POSTGRES_HOST_PORT:-5433}:5432" # "ПОРТ_ХОСТА:ПОРТ_КОНТЕЙНЕРА"
+#    environment:
+#      POSTGRES_DB: ${POSTGRES_DB:-kyrgyz_learn}
+#      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
 
   minio:
     image: pgsty/minio:latest

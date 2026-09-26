@@ -27,7 +27,4 @@ public class User { //implements UserDetails
     private Role role;
 
     private String phone;
-
-    @Embedded
-    private Address address;
 }

@@ -1,0 +1,30 @@
+@host = {{host}}
+@course_id = 1
+@user_course_id = 2
+
+########################################################################
+### Список курсов — аноним (видит только OFFICIAL)
+GET {{host}}/api/courses
+Accept: application/json
+
+########################################################################
+### Список курсов — от лица обычного юзера (OFFICIAL + свои USER)
+GET {{host}}/api/courses
+Accept: application/json
+Authorization: Bearer {{user_token}}
+
+########################################################################
+### Список курсов — от лица админа (видит вообще всё)
+GET {{host}}/api/courses
+Accept: application/json
+Authorization: Bearer {{admin_token}}
+
+########################################################################
+### Получить курс по id
+GET {{host}}/api/courses/{{course_id}}
+Accept: application/json
+
+########################################################################
+### Получить чужой USER-курс анонимно (ожидаем 404, а не 403 — не палим существование)
+GET {{host}}/api/courses/{{user_course_id}}
+Accept: application/json

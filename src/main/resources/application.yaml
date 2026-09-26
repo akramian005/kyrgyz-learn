@@ -21,6 +21,12 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+  # по умолчанию Spring пропускает файлы только до 1MB — поднимаем до лимита аудио в FileStorageService
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+
   web:
     error:
       include-message: always #при запуске спринг через docker нужно включить
@@ -43,4 +49,4 @@ minio:
   public-url: http://${MINIO_PUBLIC_HOST:localhost}:${MINIO_API_PORT:9000}
   access-key: ${MINIO_ROOT_USER:minioadmin}
   secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
-  bucket: ${MINIO_BUCKET:product-images}
+  bucket: ${MINIO_BUCKET:kyrgyzlearn-media}

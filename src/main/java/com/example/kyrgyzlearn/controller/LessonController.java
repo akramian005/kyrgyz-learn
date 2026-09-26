@@ -106,6 +106,15 @@ public class LessonController {
                 .body(lessonService.uploadQuestionAudio(lessonId, questionId, file, authentication));
     }
 
+    @DeleteMapping("/{lessonId}/questions/{questionId}/audio")
+    public ResponseEntity<Void> deleteQuestionAudio(
+            @PathVariable Long lessonId,
+            @PathVariable Long questionId,
+            Authentication authentication) {
+        lessonService.deleteQuestionAudio(lessonId, questionId, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
     // ---------- Варианты ответа ----------
 
     @PostMapping("/{lessonId}/questions/{questionId}/options")
@@ -141,17 +150,6 @@ public class LessonController {
             Authentication authentication) {
         lessonService.deleteAnswerOption(lessonId, questionId, optionId, authentication);
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{lessonId}/questions/{questionId}/options/{optionId}/image")
-    public ResponseEntity<String> uploadOptionImage(
-            @PathVariable Long lessonId,
-            @PathVariable Long questionId,
-            @PathVariable Long optionId,
-            @RequestParam("file") MultipartFile file,
-            Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(lessonService.uploadOptionImage(lessonId, questionId, optionId, file, authentication));
     }
 
     // ---------- Сообщения-объяснения ----------
@@ -201,6 +199,36 @@ public class LessonController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(lessonService.uploadMessageAudio(lessonId, messageId, file, authentication));
+    }
+
+    @DeleteMapping("/{lessonId}/messages/{messageId}/image")
+    public ResponseEntity<Void> deleteMessageImage(
+            @PathVariable Long lessonId,
+            @PathVariable Long messageId,
+            Authentication authentication) {
+        lessonService.deleteMessageImage(lessonId, messageId, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{lessonId}/messages/{messageId}/audio")
+    public ResponseEntity<Void> deleteMessageAudio(
+            @PathVariable Long lessonId,
+            @PathVariable Long messageId,
+            Authentication authentication) {
+        lessonService.deleteMessageAudio(lessonId, messageId, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---------- Порядок элементов ----------
+
+    // переместить вопрос или сообщение внутри урока; возвращает урок с новым порядком
+    @PatchMapping("/{lessonId}/items/{itemId}/position")
+    public ResponseEntity<LessonDto> moveItem(
+            @PathVariable Long lessonId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody ItemMoveRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(lessonService.moveItem(lessonId, itemId, request.position(), authentication));
     }
 
     // ---------- Разбор PATCH-тела ----------

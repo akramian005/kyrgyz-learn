@@ -5,6 +5,7 @@ import com.example.kyrgyzlearn.dto.course.CourseDto;
 import com.example.kyrgyzlearn.dto.course.CourseUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
+import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.repository.CourseRepository;
 import com.example.kyrgyzlearn.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class CourseService {
     private static final String ADMIN_AUTHORITY = "ROLE_ADMIN";
 
     private final CourseRepository courseRepository;
+    private final LessonMediaCleaner lessonMediaCleaner;
 
     @Transactional(readOnly = true)
     public Page<CourseDto> getAllCourses(Pageable pageable, Authentication authentication) {
@@ -87,6 +89,11 @@ public class CourseService {
     public void deleteCourse(Long id, Authentication authentication) {
         Course course = findCourseOrThrow(id);
         requireCanModify(course, authentication);
+
+        // файлы в MinIO каскад не трогает — чистим их вручную
+        for (Lesson lesson : course.getLessons()) {
+            lessonMediaCleaner.deleteLessonMedia(lesson);
+        }
 
         courseRepository.delete(course); // каскадно удалит уроки и их содержимое
     }

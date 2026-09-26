@@ -39,13 +39,13 @@ public class JwtFilter extends OncePerRequestFilter {
 
         return HttpMethod.OPTIONS.matches(method)
                 || path.startsWith("/api.http/auth/")
-                || path.equals("/error")
-                || isPublicGetEndpoint(method, path);
+                || path.equals("/error");
     }
 
     /*
-     * Публичные GET endpoint-ы каталога.
-     * Смотреть продукты и категории можно всем, а изменять их можно только ADMIN.
+     * Публичные GET endpoint-ы: курсы и уроки можно смотреть без токена.
+     * Токен здесь всё равно читаем — по нему CourseService показывает пользователю его личные курсы.
+     * Но битый/просроченный токен не должен ломать публичную страницу: такой запрос идёт как анонимный.
      */
     private boolean isPublicGetEndpoint(String method, String path) {
         return HttpMethod.GET.matches(method)
@@ -109,11 +109,13 @@ public class JwtFilter extends OncePerRequestFilter {
         } catch (JwtException | IllegalArgumentException | UsernameNotFoundException ex) {
             /*
              * Любая проблема с токеном означает, что запрос нельзя авторизовать.
-             * Чистим SecurityContext и возвращаем 401.
+             * Чистим SecurityContext: публичный GET продолжаем как анонимный, остальное — 401.
              */
             SecurityContextHolder.clearContext();
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
-            return;
+            if (!isPublicGetEndpoint(request.getMethod(), request.getServletPath())) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+                return;
+            }
         }
 
         filterChain.doFilter(request, response);

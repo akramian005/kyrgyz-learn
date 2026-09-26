@@ -13,6 +13,8 @@ public record QuestionCreateRequest(
         @NotNull(message = "Question type is required")
         QuestionType type,
 
-        List<AnswerOptionCreateRequest> options
+        List<AnswerOptionCreateRequest> options,
+        // куда вставить вопрос внутри урока (0 — в начало); null — в конец
+        Integer position
 ) {
 }

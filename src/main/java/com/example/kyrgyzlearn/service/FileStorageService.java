@@ -16,12 +16,12 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-public class ImageStorageService {
+public class FileStorageService {
 
     private final MinioClient minioClient;
     private final MinioClient publicMinioClient;
 
-    public ImageStorageService(
+    public FileStorageService(
             @Qualifier("internalMinioClient") MinioClient minioClient,
             @Qualifier("publicMinioClient") MinioClient publicMinioClient) {
         this.minioClient = minioClient;
@@ -31,23 +31,37 @@ public class ImageStorageService {
     @Value("${minio.bucket}")
     private String bucket;
 
-    public String upload(Long productId, MultipartFile file) {
+    // --- Методы для картинок ---
+    public String uploadImage(String folder, MultipartFile file) {
+        return uploadFile(folder, file, "image/", 5 * 1024 * 1024);
+    }
+
+    // --- Методы для аудио ---
+    public String uploadAudio(String folder, MultipartFile file) {
+        return uploadFile(folder, file, "audio/", 20 * 1024 * 1024); // Лимит 20 МБ для аудио
+    }
+
+    // --- Единый внутренний метод загрузки ---
+    private String uploadFile(String folder, MultipartFile file, String allowedMimePrefix, long maxSizeBytes) {
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is empty");
         }
-        if (file.getSize() > 5 * 1024 * 1024) {
+        if (file.getSize() > maxSizeBytes) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File too large");
         }
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only image files are allowed");
+        if (contentType == null || !contentType.startsWith(allowedMimePrefix)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid file type. Expected: " + allowedMimePrefix + "*"
+            );
         }
 
         try {
             ensureBucketExists();
 
             String extension = getExtension(file.getOriginalFilename());
-            String objectKey = "products/" + productId + "/" + UUID.randomUUID() + extension;
+            String objectKey = folder + "/" + UUID.randomUUID() + extension;
 
             try (InputStream is = file.getInputStream()) {
                 minioClient.putObject(PutObjectArgs.builder()
@@ -60,8 +74,8 @@ public class ImageStorageService {
 
             return objectKey;
         } catch (Exception e) {
-            log.error("Failed to upload image to MinIO (bucket={}, productId={})", bucket, productId, e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload image");
+            log.error("Failed to upload file to MinIO (bucket={}, folder={})", bucket, folder, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload file");
         }
     }
 
@@ -75,7 +89,7 @@ public class ImageStorageService {
                     .build());
         } catch (Exception e) {
             log.error("Failed to generate presigned URL for object {}", objectKey, e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate image URL");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate file URL");
         }
     }
 
@@ -87,7 +101,7 @@ public class ImageStorageService {
                     .build());
         } catch (Exception e) {
             log.error("Failed to delete object {}", objectKey, e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete image");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to delete file");
         }
     }
 

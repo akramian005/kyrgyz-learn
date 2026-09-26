@@ -16,7 +16,6 @@ public class AnswerOption {
     private Long id;
 
     private String text;
-    private String imageObjectKey; // опционально, картинка варианта ответа
 
     // порядок отображения варианта пользователю (не путать с correctPosition)
     private Integer sortOrder;

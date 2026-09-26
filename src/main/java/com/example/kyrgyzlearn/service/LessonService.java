@@ -34,9 +34,8 @@ public class LessonService {
     private final AnswerOptionRepository answerOptionRepository;
     private final CourseRepository courseRepository;
     private final CourseService courseService;
-    // тот же клиент, что и для картинок товаров — просто хранит файлы по ключу,
-    // так что подходит и для аудио/картинок урока без изменений
-    private final ImageStorageService fileStorageService;
+    private final FileStorageService fileStorageService;
+    private final LessonMediaCleaner lessonMediaCleaner;
 
     @Transactional(readOnly = true)
     public Page<LessonSummaryDto> getLessonsByCourse(Long courseId, Pageable pageable, Authentication authentication) {
@@ -96,9 +95,7 @@ public class LessonService {
         Lesson lesson = findLessonOrThrow(id);
         courseService.requireCanModify(lesson.getCourse(), authentication);
 
-        for (LessonItem item : lesson.getItems()) {
-            deleteItemMedia(item);
-        }
+        lessonMediaCleaner.deleteLessonMedia(lesson);
 
         lessonRepository.delete(lesson); // каскадно удалит items и options
     }
@@ -111,8 +108,6 @@ public class LessonService {
         courseService.requireCanModify(lesson.getCourse(), authentication);
 
         Question question = new Question();
-        question.setLesson(lesson);
-        question.setPosition(nextPosition(lesson));
         question.setText(request.text());
         question.setType(request.type());
 
@@ -129,10 +124,8 @@ public class LessonService {
             }
         }
 
-        Question saved = questionRepository.save(question);
-        lesson.getItems().add(saved);
-
-        return toQuestionDto(saved);
+        insertItem(lesson, question, request.position());
+        return toQuestionDto(questionRepository.save(question));
     }
 
     @Transactional
@@ -159,8 +152,8 @@ public class LessonService {
         Question question = findQuestionOrThrow(lessonId, questionId);
         courseService.requireCanModify(question.getLesson().getCourse(), authentication);
 
-        deleteItemMedia(question);
-        questionRepository.delete(question); // каскадно удалит options
+        lessonMediaCleaner.deleteItemMedia(question);
+        removeItem(question); // каскадно удалит options
     }
 
     @Transactional
@@ -172,11 +165,23 @@ public class LessonService {
             fileStorageService.delete(question.getAudioObjectKey());
         }
 
-        String objectKey = fileStorageService.upload(questionId, file);
+        String folder = "questions/" + questionId + "/audio";
+        String objectKey = fileStorageService.uploadAudio(folder, file);
         question.setAudioObjectKey(objectKey);
         questionRepository.save(question);
 
         return fileStorageService.getPresignedUrl(objectKey);
+    }
+
+    @Transactional
+    public void deleteQuestionAudio(Long lessonId, Long questionId, Authentication authentication) {
+        Question question = findQuestionOrThrow(lessonId, questionId);
+        courseService.requireCanModify(question.getLesson().getCourse(), authentication);
+
+        if (question.getAudioObjectKey() != null) {
+            fileStorageService.delete(question.getAudioObjectKey());
+            question.setAudioObjectKey(null);
+        }
     }
 
     // ---------- Варианты ответа ----------
@@ -222,27 +227,7 @@ public class LessonService {
         AnswerOption option = findAnswerOptionOrThrow(lessonId, questionId, optionId);
         courseService.requireCanModify(option.getQuestion().getLesson().getCourse(), authentication);
 
-        if (option.getImageObjectKey() != null) {
-            fileStorageService.delete(option.getImageObjectKey());
-        }
-
         answerOptionRepository.delete(option);
-    }
-
-    @Transactional
-    public String uploadOptionImage(Long lessonId, Long questionId, Long optionId, MultipartFile file, Authentication authentication) {
-        AnswerOption option = findAnswerOptionOrThrow(lessonId, questionId, optionId);
-        courseService.requireCanModify(option.getQuestion().getLesson().getCourse(), authentication);
-
-        if (option.getImageObjectKey() != null) {
-            fileStorageService.delete(option.getImageObjectKey());
-        }
-
-        String objectKey = fileStorageService.upload(optionId, file);
-        option.setImageObjectKey(objectKey);
-        answerOptionRepository.save(option);
-
-        return fileStorageService.getPresignedUrl(objectKey);
     }
 
     // ---------- Сообщения-объяснения ----------
@@ -253,14 +238,10 @@ public class LessonService {
         courseService.requireCanModify(lesson.getCourse(), authentication);
 
         LessonMessage message = new LessonMessage();
-        message.setLesson(lesson);
-        message.setPosition(nextPosition(lesson));
         message.setText(request.text());
 
-        LessonMessage saved = lessonMessageRepository.save(message);
-        lesson.getItems().add(saved);
-
-        return toMessageDto(saved);
+        insertItem(lesson, message, request.position());
+        return toMessageDto(lessonMessageRepository.save(message));
     }
 
     @Transactional
@@ -280,8 +261,8 @@ public class LessonService {
         LessonMessage message = findMessageOrThrow(lessonId, messageId);
         courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
-        deleteItemMedia(message);
-        lessonMessageRepository.delete(message);
+        lessonMediaCleaner.deleteItemMedia(message);
+        removeItem(message);
     }
 
     @Transactional
@@ -293,7 +274,8 @@ public class LessonService {
             fileStorageService.delete(message.getImageObjectKey());
         }
 
-        String objectKey = fileStorageService.upload(messageId, file);
+        String folder = "messages/" + messageId + "/images";
+        String objectKey = fileStorageService.uploadImage(folder, file);
         message.setImageObjectKey(objectKey);
         lessonMessageRepository.save(message);
 
@@ -309,37 +291,85 @@ public class LessonService {
             fileStorageService.delete(message.getAudioObjectKey());
         }
 
-        String objectKey = fileStorageService.upload(messageId, file);
+        String folder = "messages/" + messageId + "/audio";
+        String objectKey = fileStorageService.uploadAudio(folder, file);
         message.setAudioObjectKey(objectKey);
         lessonMessageRepository.save(message);
 
         return fileStorageService.getPresignedUrl(objectKey);
     }
 
-    // ---------- Вспомогательные методы ----------
+    @Transactional
+    public void deleteMessageImage(Long lessonId, Long messageId, Authentication authentication) {
+        LessonMessage message = findMessageOrThrow(lessonId, messageId);
+        courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
-    private int nextPosition(Lesson lesson) {
-        return lesson.getItems().size();
+        if (message.getImageObjectKey() != null) {
+            fileStorageService.delete(message.getImageObjectKey());
+            message.setImageObjectKey(null);
+        }
     }
 
-    private void deleteItemMedia(LessonItem item) {
-        if (item instanceof Question q) {
-            if (q.getAudioObjectKey() != null) {
-                fileStorageService.delete(q.getAudioObjectKey());
-            }
-            for (AnswerOption option : q.getOptions()) {
-                if (option.getImageObjectKey() != null) {
-                    fileStorageService.delete(option.getImageObjectKey());
-                }
-            }
-        } else if (item instanceof LessonMessage m) {
-            if (m.getImageObjectKey() != null) {
-                fileStorageService.delete(m.getImageObjectKey());
-            }
-            if (m.getAudioObjectKey() != null) {
-                fileStorageService.delete(m.getAudioObjectKey());
-            }
+    @Transactional
+    public void deleteMessageAudio(Long lessonId, Long messageId, Authentication authentication) {
+        LessonMessage message = findMessageOrThrow(lessonId, messageId);
+        courseService.requireCanModify(message.getLesson().getCourse(), authentication);
+
+        if (message.getAudioObjectKey() != null) {
+            fileStorageService.delete(message.getAudioObjectKey());
+            message.setAudioObjectKey(null);
         }
+    }
+
+    // ---------- Порядок элементов урока ----------
+
+    // перемещает вопрос или сообщение на новую позицию, остальные элементы сдвигаются
+    @Transactional
+    public LessonDto moveItem(Long lessonId, Long itemId, int position, Authentication authentication) {
+        Lesson lesson = findLessonOrThrow(lessonId);
+        courseService.requireCanModify(lesson.getCourse(), authentication);
+
+        List<LessonItem> items = lesson.getItems();
+        LessonItem item = items.stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Item " + itemId + " not found in lesson " + lessonId));
+
+        items.remove(item);
+        items.add(clampIndex(position, items.size()), item);
+        renumber(items);
+
+        return toDto(lesson);
+    }
+
+    // ---------- Вспомогательные методы ----------
+
+    // вставляет элемент в урок на позицию (null — в конец) и перенумеровывает все элементы 0..n-1
+    private void insertItem(Lesson lesson, LessonItem item, Integer position) {
+        List<LessonItem> items = lesson.getItems();
+        int index = position == null ? items.size() : clampIndex(position, items.size());
+
+        item.setLesson(lesson);
+        items.add(index, item);
+        renumber(items);
+    }
+
+    // orphanRemoval у Lesson.items удалит элемент из БД, оставшиеся позиции идут без дыр
+    private void removeItem(LessonItem item) {
+        List<LessonItem> items = item.getLesson().getItems();
+        items.remove(item);
+        renumber(items);
+    }
+
+    private void renumber(List<LessonItem> items) {
+        for (int i = 0; i < items.size(); i++) {
+            items.get(i).setPosition(i);
+        }
+    }
+
+    private int clampIndex(int position, int size) {
+        return Math.max(0, Math.min(position, size));
     }
 
     private Course findCourseOrThrow(Long id) {
@@ -375,7 +405,7 @@ public class LessonService {
     }
 
     private AnswerOption findAnswerOptionOrThrow(Long lessonId, Long questionId, Long optionId) {
-        findQuestionOrThrow(lessonId, questionId); // заодно проверит принадлежность вопроса уроку
+        findQuestionOrThrow(lessonId, questionId);
 
         AnswerOption option = answerOptionRepository.findById(optionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Option not found: " + optionId));
@@ -453,7 +483,6 @@ public class LessonService {
         return new AnswerOptionDto(
                 option.getId(),
                 option.getText(),
-                option.getImageObjectKey() != null ? fileStorageService.getPresignedUrl(option.getImageObjectKey()) : null,
                 option.getSortOrder(),
                 option.isCorrect(),
                 option.getCorrectPosition()
