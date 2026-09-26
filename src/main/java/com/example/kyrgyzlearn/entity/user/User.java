@@ -1,4 +1,4 @@
-package com.example.kyrgyzlearn.entity;
+package com.example.kyrgyzlearn.entity.user;
 
 import jakarta.persistence.*;
 import lombok.*;

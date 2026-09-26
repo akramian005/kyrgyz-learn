@@ -1,7 +1,6 @@
 package com.example.kyrgyzlearn.security;
 
-import com.example.kyrgyzlearn.entity.User;
-import com.example.kyrgyzlearn.entity.User;
+import com.example.kyrgyzlearn.entity.user.User;
 import com.example.kyrgyzlearn.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

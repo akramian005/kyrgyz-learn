@@ -49,10 +49,10 @@ public class JwtFilter extends OncePerRequestFilter {
      */
     private boolean isPublicGetEndpoint(String method, String path) {
         return HttpMethod.GET.matches(method)
-                && (path.equals("/api.http/products")
-                || path.startsWith("/api.http/products/")
-                || path.equals("/api.http/categories")
-                || path.startsWith("/api.http/categories/"));
+                && (path.equals("/api/lessons")
+                || path.startsWith("/api/lessons/")
+                || path.equals("/api/courses")
+                || path.startsWith("/api/courses/"));
     }
 
     @Override

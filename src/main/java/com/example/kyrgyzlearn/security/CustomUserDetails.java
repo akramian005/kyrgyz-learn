@@ -2,7 +2,7 @@ package com.example.kyrgyzlearn.security;
 
 //package com.example.demo2.identity.service;
 
-import com.example.kyrgyzlearn.entity.User;
+import com.example.kyrgyzlearn.entity.user.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

@@ -81,24 +81,22 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/categories/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/categories/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/products/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMIN")
-                        .requestMatchers("/api/cart/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/orders/all").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/orders/*/ship").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/orders/*/deliver").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/orders/*/admin-cancel").hasRole("ADMIN")
-                        .requestMatchers("/api/orders/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/cached/products/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/cached/products/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/cached/products/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/cached/products/**").hasRole("ADMIN")
+
+                        // Курсы: чтение открыто всем (видимость USER-курсов фильтрует CourseService
+                        // по текущему юзеру — анонимам это ничем не грозит, они просто видят OFFICIAL).
+                        // Создание/изменение/удаление — авторизованным, а какой именно курс им можно
+                        // трогать (OFFICIAL только админ, USER только владелец) решает CourseService.
+                        .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/courses/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/courses/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/courses/**").authenticated()
+
+                        // Уроки — та же логика, права по владельцу курса проверяет LessonService
+                        .requestMatchers(HttpMethod.GET, "/api/lessons/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/lessons/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/lessons/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/lessons/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 /*

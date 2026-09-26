@@ -1,0 +1,77 @@
+package com.example.kyrgyzlearn.controller;
+
+import com.example.kyrgyzlearn.dto.common.Nullable;
+import com.example.kyrgyzlearn.dto.course.CourseCreateRequest;
+import com.example.kyrgyzlearn.dto.course.CourseDto;
+import com.example.kyrgyzlearn.dto.course.CourseUpdateRequest;
+import com.example.kyrgyzlearn.service.CourseService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.JsonNode;
+
+@RestController
+@RequestMapping("/api/courses")
+@RequiredArgsConstructor
+public class CourseController {
+
+    private final CourseService courseService;
+
+    @GetMapping
+    public ResponseEntity<Page<CourseDto>> getAllCourses(
+            @PageableDefault(page = 0, size = 10, sort = "position") Pageable pageable,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(courseService.getAllCourses(pageable, authentication));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CourseDto> getCourseById(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(courseService.getCourseById(id, authentication));
+    }
+
+    // authenticated(), не hasRole — тип курса (OFFICIAL/USER) решает сервис по роли автора
+    @PostMapping
+    public ResponseEntity<CourseDto> createCourse(
+            @Valid @RequestBody CourseCreateRequest request,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.createCourse(request, authentication));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<CourseDto> updateCourse(
+            @PathVariable Long id,
+            @RequestBody JsonNode body,
+            Authentication authentication) {
+        CourseUpdateRequest request = new CourseUpdateRequest(
+                extractString(body, "title"),
+                extractString(body, "description"),
+                extractInteger(body, "position")
+        );
+        return ResponseEntity.ok(courseService.updateCourse(id, request, authentication));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCourse(@PathVariable Long id, Authentication authentication) {
+        courseService.deleteCourse(id, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
+    private Nullable<String> extractString(JsonNode body, String field) {
+        if (!body.has(field)) return Nullable.undefined();
+        JsonNode node = body.get(field);
+        return Nullable.of(node.isNull() ? null : node.asString());
+    }
+
+    private Nullable<Integer> extractInteger(JsonNode body, String field) {
+        if (!body.has(field)) return Nullable.undefined();
+        JsonNode node = body.get(field);
+        return Nullable.of(node.isNull() ? null : node.intValue());
+    }
+}

@@ -1,8 +1,7 @@
-package com.example.kyrgyzlearn.entity;
+package com.example.kyrgyzlearn.entity.user;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
