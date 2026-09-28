@@ -13,6 +13,7 @@ import com.example.kyrgyzlearn.repository.CourseRepository;
 import com.example.kyrgyzlearn.repository.SavedCourseRepository;
 import com.example.kyrgyzlearn.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,9 +27,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CourseService {
+
+    private static final String ADMIN_AUTHORITY = "ROLE_ADMIN";
 
     private final CourseRepository courseRepository;
     private final SavedCourseRepository savedCourseRepository;
@@ -70,16 +74,22 @@ public class CourseService {
                 progressService.completed(authentication));
     }
 
-    // через API создаются только личные курсы (у админа тоже) — официальные лежат в content/official
+    // official = true — официальный курс (только админ): новый JSON-файл в official-content, в БД не попадает
     @Transactional
     public CourseDto createCourse(CourseCreateRequest request, Authentication authentication) {
         Course course = new Course();
         course.setTitle(request.title());
         course.setDescription(request.description());
         course.setPosition(request.position() != null ? request.position() : 0);
+
+        if (Boolean.TRUE.equals(request.official())) {
+            requireAdmin(authentication);
+            officialContent.add(course);
+            return courseMapper.toDto(course, false, ProgressService.Completed.NONE);
+        }
+
         course.setType(CourseType.USER);
         course.setOwner(getCurrentUser(authentication));
-
         return courseMapper.toDto(courseRepository.save(course), false, ProgressService.Completed.NONE);
     }
 
@@ -102,7 +112,7 @@ public class CourseService {
             course.setPosition(request.position().get());
         }
 
-        Course saved = courseRepository.save(course);
+        Course saved = saveIfOfficial(course) ? course : courseRepository.save(course);
         return toDto(saved, savedCourseIds(currentUserIdOrNull(authentication)),
                 progressService.completed(authentication));
     }
@@ -122,19 +132,23 @@ public class CourseService {
 
         savedCourseRepository.deleteByCourseId(course.getId()); // курс мог быть в сохранённых у других
         progressService.deleteForCourse(course.getId());
-        courseRepository.delete(course); // каскадно удалит уроки с их содержимым и видео
+        if (course.getType() == CourseType.OFFICIAL) {
+            officialContent.remove(course); // удаляет JSON-файл курса
+        } else {
+            courseRepository.delete(course); // каскадно удалит уроки с их содержимым и видео
+        }
     }
 
     // ---------- Права доступа ----------
     // Публичный — его же вызывают LessonService, QuestionService и др. для проверки прав
     // на урок через его course, так как правило одно и то же: "не в своём курсе — нельзя".
 
-    // официальные курсы только для чтения — даже для админа: они не в БД, а в файлах
-    // (заодно это гарантирует, что их объекты из OfficialContent никогда не попадут в save/delete)
+    // официальные курсы правит только админ (изменения пишутся в их JSON-файлы, см. saveIfOfficial),
+    // личные — только владелец
     public void requireCanModify(Course course, Authentication authentication) {
         if (course.getType() == CourseType.OFFICIAL) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Official courses are read-only: they are edited in content/official on the backend");
+            requireAdmin(authentication);
+            return;
         }
 
         Long userId = currentUserIdOrNull(authentication);
@@ -142,6 +156,32 @@ public class CourseService {
         if (!Objects.equals(userId, ownerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only modify your own courses");
         }
+    }
+
+    private void requireAdmin(Authentication authentication) {
+        boolean admin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(ADMIN_AUTHORITY));
+        if (!admin) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin can modify official courses");
+        }
+    }
+
+    // ---------- Сохранение официальных курсов ----------
+
+    // Официальный курс — перезаписывает его JSON-файл целиком и возвращает true: объекты официальных курсов
+    // живут в памяти и в репозитории их передавать нельзя. Личный — false, его сохраняет сам сервис через БД.
+    // Сервисы вызывают это после любого изменения курса, его уроков, вопросов, сообщений и видео.
+    public boolean saveIfOfficial(Course course) {
+        if (course.getType() != CourseType.OFFICIAL) {
+            return false;
+        }
+        try {
+            officialContent.save(course);
+        } catch (java.io.UncheckedIOException e) {
+            log.error("Failed to save official course {}", course.getId(), e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save official course file");
+        }
+        return true;
     }
 
     private Long currentUserIdOrNull(Authentication authentication) {

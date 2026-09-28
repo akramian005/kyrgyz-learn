@@ -45,10 +45,13 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.schema: DEBUG
 
-# Картинки, аудио и видео официальных курсов лежат в этой папке на сервере (не в MinIO и не в jar);
-# пути image/audio/video в content/official/*.json — относительно неё. Относительный путь считается
-# от папки, из которой запущен бэкенд (kyrgyz-learn/), в Docker — от /app
+# Официальные курсы — JSON-файлы в папке dir (один файл — один курс, см. official-content/README.md).
+# Бэкенд читает их при старте и перезаписывает, когда админ правит курс в приложении, поэтому это папка
+# на диске, а не ресурсы внутри jar. Картинки, аудио и видео официальных курсов — в media-dir (не в MinIO);
+# пути image/audio/video в JSON — относительно неё. Относительные пути считаются от папки,
+# из которой запущен бэкенд (kyrgyz-learn/), в Docker — от /app
 official-content:
+  dir: ${OFFICIAL_CONTENT_DIR:./official-content}
   media-dir: ${OFFICIAL_MEDIA_DIR:./official-media}
 
 # Тестовые пользователи *@test.kg с курсами для проверки поиска и пагинации (DevDataSeeder).

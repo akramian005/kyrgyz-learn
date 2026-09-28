@@ -8,13 +8,14 @@ import com.example.kyrgyzlearn.entity.lesson.Question;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-// Удаляет файлы уроков и видео курса из MinIO. Вынесено отдельно, чтобы им пользовались
-// LessonService, CourseVideoService и CourseService без циклической зависимости между ними.
+// Удаляет файлы уроков и видео курса (MinIO или папка официальных курсов — решает CourseMedia).
+// Вынесено отдельно, чтобы им пользовались LessonService, CourseVideoService и CourseService
+// без циклической зависимости между ними.
 @Component
 @RequiredArgsConstructor
 public class LessonMediaCleaner {
 
-    private final FileStorageService fileStorageService;
+    private final CourseMedia courseMedia;
 
     public void deleteLessonMedia(Lesson lesson) {
         for (LessonItem item : lesson.getItems()) {
@@ -23,21 +24,16 @@ public class LessonMediaCleaner {
     }
 
     public void deleteItemMedia(LessonItem item) {
+        var course = item.getLesson().getCourse();
         if (item instanceof Question q) {
-            deleteIfPresent(q.getAudioObjectKey());
+            courseMedia.delete(course, q.getAudioObjectKey());
         } else if (item instanceof LessonMessage m) {
-            deleteIfPresent(m.getImageObjectKey());
-            deleteIfPresent(m.getAudioObjectKey());
+            courseMedia.delete(course, m.getImageObjectKey());
+            courseMedia.delete(course, m.getAudioObjectKey());
         }
     }
 
     public void deleteVideoMedia(CourseVideo video) {
-        deleteIfPresent(video.getVideoObjectKey());
-    }
-
-    private void deleteIfPresent(String objectKey) {
-        if (objectKey != null) {
-            fileStorageService.delete(objectKey);
-        }
+        courseMedia.delete(video.getCourse(), video.getVideoObjectKey());
     }
 }

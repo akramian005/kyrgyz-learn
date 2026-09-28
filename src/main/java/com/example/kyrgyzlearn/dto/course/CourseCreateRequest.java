@@ -7,6 +7,8 @@ public record CourseCreateRequest(
         String title,
 
         String description,
-        Integer position
+        Integer position,
+        // true — официальный курс (только админ, хранится JSON-файлом); иначе — личный курс автора
+        Boolean official
 ) {
 }

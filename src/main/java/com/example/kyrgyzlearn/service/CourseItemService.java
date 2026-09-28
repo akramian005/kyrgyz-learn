@@ -59,6 +59,7 @@ public class CourseItemService {
         items.remove(item);
         items.add(clampIndex(request.position(), items.size()), item);
         renumber(items);
+        courseService.saveIfOfficial(course); // личный курс сохранит JPA сам (dirty checking)
 
         return toDtos(items, progressService.completed(authentication));
     }

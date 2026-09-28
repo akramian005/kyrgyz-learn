@@ -5,9 +5,11 @@ import com.example.kyrgyzlearn.dto.video.CourseVideoCreateRequest;
 import com.example.kyrgyzlearn.dto.video.CourseVideoDto;
 import com.example.kyrgyzlearn.dto.video.CourseVideoUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
+import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.mapper.CourseVideoMapper;
 import com.example.kyrgyzlearn.repository.CourseVideoRepository;
+import com.example.kyrgyzlearn.service.FileStorageService.Kind;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -25,7 +27,7 @@ public class CourseVideoService {
     private final OfficialContent officialContent;
     private final CourseService courseService;
     private final CourseItemService courseItemService;
-    private final FileStorageService fileStorageService;
+    private final CourseMedia courseMedia;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final CourseVideoMapper courseVideoMapper;
     private final ProgressService progressService;
@@ -54,6 +56,11 @@ public class CourseVideoService {
         video.setDescription(request.description());
         courseItemService.insert(course, video, request.position());
 
+        if (course.getType() == CourseType.OFFICIAL) {
+            course.getVideos().add(video);
+            courseService.saveIfOfficial(course); // id видео раздаст OfficialContent
+            return courseVideoMapper.toDto(video, false);
+        }
         CourseVideo saved = courseVideoRepository.save(video);
         course.getVideos().add(saved);
 
@@ -76,6 +83,9 @@ public class CourseVideoService {
             video.setDescription(request.description().get());
         }
 
+        if (courseService.saveIfOfficial(video.getCourse())) {
+            return toDto(video, authentication);
+        }
         return toDto(courseVideoRepository.save(video), authentication);
     }
 
@@ -87,6 +97,7 @@ public class CourseVideoService {
         lessonMediaCleaner.deleteVideoMedia(video);
         progressService.deleteForVideo(video.getId());
         video.getCourse().getVideos().remove(video); // orphanRemoval удалит запись из БД
+        courseService.saveIfOfficial(video.getCourse());
     }
 
     @Transactional
@@ -94,16 +105,17 @@ public class CourseVideoService {
         CourseVideo video = findVideoOrThrow(courseId, videoId);
         courseService.requireCanModify(video.getCourse(), authentication);
 
-        if (video.getVideoObjectKey() != null) {
-            fileStorageService.delete(video.getVideoObjectKey());
-        }
+        Course course = video.getCourse();
+        courseMedia.delete(course, video.getVideoObjectKey());
 
         String folder = "courses/" + courseId + "/videos/" + videoId;
-        String objectKey = fileStorageService.uploadVideo(folder, file);
+        String objectKey = courseMedia.upload(course, folder, file, Kind.VIDEO);
         video.setVideoObjectKey(objectKey);
-        courseVideoRepository.save(video);
+        if (!courseService.saveIfOfficial(course)) {
+            courseVideoRepository.save(video);
+        }
 
-        return fileStorageService.getPresignedUrl(objectKey);
+        return courseMedia.url(course, objectKey);
     }
 
     @Transactional
@@ -112,8 +124,9 @@ public class CourseVideoService {
         courseService.requireCanModify(video.getCourse(), authentication);
 
         if (video.getVideoObjectKey() != null) {
-            fileStorageService.delete(video.getVideoObjectKey());
+            courseMedia.delete(video.getCourse(), video.getVideoObjectKey());
             video.setVideoObjectKey(null);
+            courseService.saveIfOfficial(video.getCourse());
         }
     }
 
