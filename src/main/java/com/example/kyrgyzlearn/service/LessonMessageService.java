@@ -1,12 +1,15 @@
 package com.example.kyrgyzlearn.service;
 
+import com.example.kyrgyzlearn.content.OfficialContent;
 import com.example.kyrgyzlearn.dto.message.LessonMessageCreateRequest;
 import com.example.kyrgyzlearn.dto.message.LessonMessageDto;
 import com.example.kyrgyzlearn.dto.message.LessonMessageUpdateRequest;
+import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.LessonMessage;
 import com.example.kyrgyzlearn.mapper.LessonMapper;
 import com.example.kyrgyzlearn.repository.LessonMessageRepository;
+import com.example.kyrgyzlearn.service.FileStorageService.Kind;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -23,7 +26,8 @@ public class LessonMessageService {
     private final LessonMessageRepository lessonMessageRepository;
     private final LessonService lessonService;
     private final CourseService courseService;
-    private final FileStorageService fileStorageService;
+    private final CourseMedia courseMedia;
+    private final OfficialContent officialContent;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final LessonMapper lessonMapper;
 
@@ -36,6 +40,9 @@ public class LessonMessageService {
         message.setText(request.text());
 
         lessonService.insertItem(lesson, message, request.position());
+        if (courseService.saveIfOfficial(lesson.getCourse())) {
+            return lessonMapper.toMessageDto(message);
+        }
         return lessonMapper.toMessageDto(lessonMessageRepository.save(message));
     }
 
@@ -48,6 +55,9 @@ public class LessonMessageService {
             message.setText(request.text().get());
         }
 
+        if (courseService.saveIfOfficial(courseOf(message))) {
+            return lessonMapper.toMessageDto(message);
+        }
         return lessonMapper.toMessageDto(lessonMessageRepository.save(message));
     }
 
@@ -56,8 +66,10 @@ public class LessonMessageService {
         LessonMessage message = findMessageOrThrow(lessonId, messageId);
         courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
+        Course course = courseOf(message);
         lessonMediaCleaner.deleteItemMedia(message);
         lessonService.removeItem(message);
+        courseService.saveIfOfficial(course);
     }
 
     @Transactional
@@ -65,16 +77,17 @@ public class LessonMessageService {
         LessonMessage message = findMessageOrThrow(lessonId, messageId);
         courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
-        if (message.getImageObjectKey() != null) {
-            fileStorageService.delete(message.getImageObjectKey());
-        }
+        Course course = courseOf(message);
+        courseMedia.delete(course, message.getImageObjectKey());
 
         String folder = "messages/" + messageId + "/images";
-        String objectKey = fileStorageService.uploadImage(folder, file);
+        String objectKey = courseMedia.upload(course, folder, file, Kind.IMAGE);
         message.setImageObjectKey(objectKey);
-        lessonMessageRepository.save(message);
+        if (!courseService.saveIfOfficial(course)) {
+            lessonMessageRepository.save(message);
+        }
 
-        return fileStorageService.getPresignedUrl(objectKey);
+        return courseMedia.url(course, objectKey);
     }
 
     @Transactional
@@ -82,16 +95,17 @@ public class LessonMessageService {
         LessonMessage message = findMessageOrThrow(lessonId, messageId);
         courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
-        if (message.getAudioObjectKey() != null) {
-            fileStorageService.delete(message.getAudioObjectKey());
-        }
+        Course course = courseOf(message);
+        courseMedia.delete(course, message.getAudioObjectKey());
 
         String folder = "messages/" + messageId + "/audio";
-        String objectKey = fileStorageService.uploadAudio(folder, file);
+        String objectKey = courseMedia.upload(course, folder, file, Kind.AUDIO);
         message.setAudioObjectKey(objectKey);
-        lessonMessageRepository.save(message);
+        if (!courseService.saveIfOfficial(course)) {
+            lessonMessageRepository.save(message);
+        }
 
-        return fileStorageService.getPresignedUrl(objectKey);
+        return courseMedia.url(course, objectKey);
     }
 
     @Transactional
@@ -100,8 +114,9 @@ public class LessonMessageService {
         courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
         if (message.getImageObjectKey() != null) {
-            fileStorageService.delete(message.getImageObjectKey());
+            courseMedia.delete(courseOf(message), message.getImageObjectKey());
             message.setImageObjectKey(null);
+            courseService.saveIfOfficial(courseOf(message));
         }
     }
 
@@ -111,15 +126,17 @@ public class LessonMessageService {
         courseService.requireCanModify(message.getLesson().getCourse(), authentication);
 
         if (message.getAudioObjectKey() != null) {
-            fileStorageService.delete(message.getAudioObjectKey());
+            courseMedia.delete(courseOf(message), message.getAudioObjectKey());
             message.setAudioObjectKey(null);
+            courseService.saveIfOfficial(courseOf(message));
         }
     }
 
     // ---------- Вспомогательные методы ----------
 
     private LessonMessage findMessageOrThrow(Long lessonId, Long messageId) {
-        LessonMessage message = lessonMessageRepository.findById(messageId)
+        LessonMessage message = officialContent.findMessage(messageId)
+                .or(() -> lessonMessageRepository.findById(messageId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found: " + messageId));
 
         if (!message.getLesson().getId().equals(lessonId)) {
@@ -127,5 +144,9 @@ public class LessonMessageService {
                     "Message " + messageId + " does not belong to lesson " + lessonId);
         }
         return message;
+    }
+
+    private static Course courseOf(LessonMessage message) {
+        return message.getLesson().getCourse();
     }
 }

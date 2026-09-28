@@ -1,5 +1,6 @@
 package com.example.kyrgyzlearn.service;
 
+import com.example.kyrgyzlearn.content.OfficialContent;
 import com.example.kyrgyzlearn.dto.question.AnswerOptionCreateRequest;
 import com.example.kyrgyzlearn.dto.question.AnswerOptionDto;
 import com.example.kyrgyzlearn.dto.question.AnswerOptionUpdateRequest;
@@ -7,11 +8,14 @@ import com.example.kyrgyzlearn.dto.question.QuestionCreateRequest;
 import com.example.kyrgyzlearn.dto.question.QuestionDto;
 import com.example.kyrgyzlearn.dto.question.QuestionUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.AnswerOption;
+import com.example.kyrgyzlearn.entity.lesson.Course;
+import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.Question;
 import com.example.kyrgyzlearn.mapper.LessonMapper;
 import com.example.kyrgyzlearn.repository.AnswerOptionRepository;
 import com.example.kyrgyzlearn.repository.QuestionRepository;
+import com.example.kyrgyzlearn.service.FileStorageService.Kind;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -28,7 +32,8 @@ public class QuestionService {
     private final AnswerOptionRepository answerOptionRepository;
     private final LessonService lessonService;
     private final CourseService courseService;
-    private final FileStorageService fileStorageService;
+    private final CourseMedia courseMedia;
+    private final OfficialContent officialContent;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final LessonMapper lessonMapper;
 
@@ -57,6 +62,9 @@ public class QuestionService {
         }
 
         lessonService.insertItem(lesson, question, request.position());
+        if (courseService.saveIfOfficial(lesson.getCourse())) {
+            return lessonMapper.toQuestionDto(question);
+        }
         return lessonMapper.toQuestionDto(questionRepository.save(question));
     }
 
@@ -76,6 +84,9 @@ public class QuestionService {
             question.setType(request.type().get());
         }
 
+        if (courseService.saveIfOfficial(courseOf(question))) {
+            return lessonMapper.toQuestionDto(question);
+        }
         return lessonMapper.toQuestionDto(questionRepository.save(question));
     }
 
@@ -84,8 +95,10 @@ public class QuestionService {
         Question question = findQuestionOrThrow(lessonId, questionId);
         courseService.requireCanModify(question.getLesson().getCourse(), authentication);
 
+        Course course = courseOf(question);
         lessonMediaCleaner.deleteItemMedia(question);
         lessonService.removeItem(question); // каскадно удалит options
+        courseService.saveIfOfficial(course);
     }
 
     @Transactional
@@ -93,16 +106,17 @@ public class QuestionService {
         Question question = findQuestionOrThrow(lessonId, questionId);
         courseService.requireCanModify(question.getLesson().getCourse(), authentication);
 
-        if (question.getAudioObjectKey() != null) {
-            fileStorageService.delete(question.getAudioObjectKey());
-        }
+        Course course = courseOf(question);
+        courseMedia.delete(course, question.getAudioObjectKey());
 
         String folder = "questions/" + questionId + "/audio";
-        String objectKey = fileStorageService.uploadAudio(folder, file);
+        String objectKey = courseMedia.upload(course, folder, file, Kind.AUDIO);
         question.setAudioObjectKey(objectKey);
-        questionRepository.save(question);
+        if (!courseService.saveIfOfficial(course)) {
+            questionRepository.save(question);
+        }
 
-        return fileStorageService.getPresignedUrl(objectKey);
+        return courseMedia.url(course, objectKey);
     }
 
     @Transactional
@@ -111,8 +125,9 @@ public class QuestionService {
         courseService.requireCanModify(question.getLesson().getCourse(), authentication);
 
         if (question.getAudioObjectKey() != null) {
-            fileStorageService.delete(question.getAudioObjectKey());
+            courseMedia.delete(courseOf(question), question.getAudioObjectKey());
             question.setAudioObjectKey(null);
+            courseService.saveIfOfficial(courseOf(question));
         }
     }
 
@@ -130,6 +145,11 @@ public class QuestionService {
         option.setCorrectPosition(request.correctPosition());
         option.setSortOrder(question.getOptions().size());
 
+        if (courseOf(question).getType() == CourseType.OFFICIAL) {
+            question.getOptions().add(option);
+            courseService.saveIfOfficial(courseOf(question)); // id варианту раздаст OfficialContent
+            return lessonMapper.toAnswerOptionDto(option);
+        }
         AnswerOption saved = answerOptionRepository.save(option);
         question.getOptions().add(saved);
 
@@ -151,6 +171,9 @@ public class QuestionService {
             option.setCorrectPosition(request.correctPosition().get());
         }
 
+        if (courseService.saveIfOfficial(courseOf(option.getQuestion()))) {
+            return lessonMapper.toAnswerOptionDto(option);
+        }
         return lessonMapper.toAnswerOptionDto(answerOptionRepository.save(option));
     }
 
@@ -159,13 +182,20 @@ public class QuestionService {
         AnswerOption option = findAnswerOptionOrThrow(lessonId, questionId, optionId);
         courseService.requireCanModify(option.getQuestion().getLesson().getCourse(), authentication);
 
-        answerOptionRepository.delete(option);
+        Question question = option.getQuestion();
+        if (courseOf(question).getType() == CourseType.OFFICIAL) {
+            question.getOptions().remove(option);
+            courseService.saveIfOfficial(courseOf(question));
+        } else {
+            answerOptionRepository.delete(option);
+        }
     }
 
     // ---------- Вспомогательные методы ----------
 
     private Question findQuestionOrThrow(Long lessonId, Long questionId) {
-        Question question = questionRepository.findById(questionId)
+        Question question = officialContent.findQuestion(questionId)
+                .or(() -> questionRepository.findById(questionId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Question not found: " + questionId));
 
         if (!question.getLesson().getId().equals(lessonId)) {
@@ -178,7 +208,8 @@ public class QuestionService {
     private AnswerOption findAnswerOptionOrThrow(Long lessonId, Long questionId, Long optionId) {
         findQuestionOrThrow(lessonId, questionId);
 
-        AnswerOption option = answerOptionRepository.findById(optionId)
+        AnswerOption option = officialContent.findOption(optionId)
+                .or(() -> answerOptionRepository.findById(optionId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Option not found: " + optionId));
 
         if (!option.getQuestion().getId().equals(questionId)) {
@@ -186,5 +217,9 @@ public class QuestionService {
                     "Option " + optionId + " does not belong to question " + questionId);
         }
         return option;
+    }
+
+    private static Course courseOf(Question question) {
+        return question.getLesson().getCourse();
     }
 }

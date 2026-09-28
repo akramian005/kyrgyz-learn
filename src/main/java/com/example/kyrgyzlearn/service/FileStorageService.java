@@ -51,41 +51,43 @@ public class FileStorageService {
     // клиенты для подписи ссылок под разные адреса (localhost, IP компьютера в сети и т.п.)
     private final Map<String, MinioClient> presignClients = new ConcurrentHashMap<>();
 
+    // Тип и лимит размера файла; те же проверки — у медиа официальных курсов (см. CourseMedia)
+    public enum Kind {
+        IMAGE("image/", 10 * 1024 * 1024),      // 10 МБ: скриншоты с телефонов бывают тяжёлыми
+        AUDIO("audio/", 20 * 1024 * 1024),      // 20 МБ
+        VIDEO("video/", 500L * 1024 * 1024);    // 500 МБ; такой же лимит стоит в spring.servlet.multipart
+
+        private final String mimePrefix;
+        private final long maxSizeBytes;
+
+        Kind(String mimePrefix, long maxSizeBytes) {
+            this.mimePrefix = mimePrefix;
+            this.maxSizeBytes = maxSizeBytes;
+        }
+    }
+
     // --- Методы для картинок ---
     public String uploadImage(String folder, MultipartFile file) {
-        return uploadFile(folder, file, "image/", 10 * 1024 * 1024); // Лимит 10 МБ: скриншоты с телефонов бывают тяжёлыми
+        return uploadFile(folder, file, Kind.IMAGE);
     }
 
     // --- Методы для аудио ---
     public String uploadAudio(String folder, MultipartFile file) {
-        return uploadFile(folder, file, "audio/", 20 * 1024 * 1024); // Лимит 20 МБ для аудио
+        return uploadFile(folder, file, Kind.AUDIO);
     }
 
     // --- Методы для видео ---
     public String uploadVideo(String folder, MultipartFile file) {
-        return uploadFile(folder, file, "video/", 500L * 1024 * 1024); // Лимит 500 МБ; такой же стоит в spring.servlet.multipart
+        return uploadFile(folder, file, Kind.VIDEO);
     }
 
-    // --- Единый внутренний метод загрузки ---
-    private String uploadFile(String folder, MultipartFile file, String allowedMimePrefix, long maxSizeBytes) {
-        if (file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is empty");
-        }
-        if (file.getSize() > maxSizeBytes) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File too large");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith(allowedMimePrefix)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid file type. Expected: " + allowedMimePrefix + "*"
-            );
-        }
+    public String uploadFile(String folder, MultipartFile file, Kind kind) {
+        validate(file, kind);
 
         try {
             ensureBucketExists();
 
-            String extension = getExtension(file.getOriginalFilename());
+            String extension = extensionOf(file.getOriginalFilename());
             String objectKey = folder + "/" + UUID.randomUUID() + extension;
 
             try (InputStream is = file.getInputStream()) {
@@ -101,6 +103,24 @@ public class FileStorageService {
         } catch (Exception e) {
             log.error("Failed to upload file to MinIO (bucket={}, folder={})", bucket, folder, e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload file");
+        }
+    }
+
+    public void validate(MultipartFile file, Kind kind) {
+        String allowedMimePrefix = kind.mimePrefix;
+        long maxSizeBytes = kind.maxSizeBytes;
+        if (file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is empty");
+        }
+        if (file.getSize() > maxSizeBytes) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File too large");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith(allowedMimePrefix)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid file type. Expected: " + allowedMimePrefix + "*"
+            );
         }
     }
 
@@ -171,7 +191,7 @@ public class FileStorageService {
         }
     }
 
-    private String getExtension(String filename) {
+    public static String extensionOf(String filename) {
         if (filename == null || !filename.contains(".")) return "";
         return filename.substring(filename.lastIndexOf("."));
     }

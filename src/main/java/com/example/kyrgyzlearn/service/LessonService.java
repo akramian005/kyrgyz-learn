@@ -67,6 +67,11 @@ public class LessonService {
         // порядок общий с видео курса: null — в конец, иначе сдвигаем остальные
         courseItemService.insert(course, lesson, request.position());
 
+        if (course.getType() == CourseType.OFFICIAL) {
+            course.getLessons().add(lesson);
+            courseService.saveIfOfficial(course); // id уроку раздаст OfficialContent
+            return lessonMapper.toDto(lesson);
+        }
         Lesson saved = lessonRepository.save(lesson);
         course.getLessons().add(saved);
 
@@ -92,6 +97,9 @@ public class LessonService {
             lesson.setPosition(request.position().get());
         }
 
+        if (courseService.saveIfOfficial(lesson.getCourse())) {
+            return lessonMapper.toDto(lesson);
+        }
         return lessonMapper.toDto(lessonRepository.save(lesson));
     }
 
@@ -103,7 +111,12 @@ public class LessonService {
         lessonMediaCleaner.deleteLessonMedia(lesson);
 
         progressService.deleteForLesson(lesson.getId());
-        lessonRepository.delete(lesson); // каскадно удалит items и options
+        if (lesson.getCourse().getType() == CourseType.OFFICIAL) {
+            lesson.getCourse().getLessons().remove(lesson);
+            courseService.saveIfOfficial(lesson.getCourse());
+        } else {
+            lessonRepository.delete(lesson); // каскадно удалит items и options
+        }
     }
 
     // урок пройден до конца — отмечаем в прогрессе (курс любой: официальный или личный)
@@ -130,6 +143,7 @@ public class LessonService {
         items.remove(item);
         items.add(clampIndex(position, items.size()), item);
         renumber(items);
+        courseService.saveIfOfficial(lesson.getCourse()); // личный курс сохранит JPA сам (dirty checking)
 
         return lessonMapper.toDto(lesson);
     }
