@@ -19,6 +19,9 @@ public class Lesson implements CourseItem {
     private Long id;
 
     private String title;
+
+    // Markdown — может быть длинным, поэтому TEXT, а не varchar(255)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     // порядок урока внутри курса — общий с видео (см. CourseItem)

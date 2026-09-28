@@ -19,6 +19,8 @@ public class CourseVideo implements CourseItem {
     @Column(nullable = false)
     private String title;
 
+    // Markdown — может быть длинным, поэтому TEXT, а не varchar(255)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     // ключ файла в MinIO; null — видео создано, но файл ещё не загружен
