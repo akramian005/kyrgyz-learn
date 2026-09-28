@@ -21,6 +21,9 @@ public class Course {
     private Long id;
 
     private String title;
+
+    // Markdown — может быть длинным, поэтому TEXT, а не varchar(255)
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     private Integer position;
