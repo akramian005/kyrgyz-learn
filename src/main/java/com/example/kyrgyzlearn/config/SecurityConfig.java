@@ -115,13 +115,21 @@ public class SecurityConfig {
 
     /*
      * CORS-настройки для запросов с frontend-а.
-     * Сейчас разрешены origin http://localhost:3000 и http://localhost:8081 (Expo web), любые headers
-     * и основные HTTP-методы для REST API.
+     * Разрешена веб-версия Expo с этого компьютера (localhost) и из домашней/локальной сети —
+     * чтобы открыть приложение в браузере телефона по IP компьютера (http://192.168.x.x:8081).
+     * Любые headers и основные HTTP-методы для REST API.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8081")); // 8081 — веб-версия Expo
+        // шаблоны, а не точные адреса: IP компьютера в сети может меняться
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:[*]",
+                "http://127.0.0.1:[*]",
+                "http://192.168.*.*:[*]",
+                "http://10.*.*.*:[*]",
+                "http://172.*.*.*:[*]"
+        ));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowCredentials(true);
