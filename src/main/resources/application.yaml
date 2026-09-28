@@ -51,6 +51,11 @@ logging:
 official-content:
   media-dir: ${OFFICIAL_MEDIA_DIR:./official-media}
 
+# Тестовые пользователи *@test.kg с курсами для проверки поиска и пагинации (DevDataSeeder).
+# Создаются один раз при старте; на проде выключить: DEV_DATA_ENABLED=false
+dev-data:
+  enabled: ${DEV_DATA_ENABLED:true}
+
 minio:
   url: http://${MINIO_HOST:localhost}:${MINIO_API_PORT:9000}
   public-url: http://${MINIO_PUBLIC_HOST:localhost}:${MINIO_API_PORT:9000}
