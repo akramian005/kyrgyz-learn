@@ -24,6 +24,7 @@
   "id": -1,
   "title": "Кыргызский для начинающих",
   "description": "Необязательно",
+  "image": "basics/cover.jpg",
   "position": 0,
   "items": [
     {
@@ -58,6 +59,7 @@
   Курсы на главной сортируются по `position`.
 - `type` вопроса: `SINGLE_CHOICE`, `MULTIPLE_CHOICE` (у вариантов `correct`) или `ORDER`
   (у вариантов `correctPosition` с 0; вариант без него — отвлекающий).
+- `image` у курса — его картинка (в списках курсов и сверху на экране курса), необязательная.
 - `image`, `audio`, `video` — необязательные пути к файлам относительно папки медиа
   (`official-content.media-dir`, по умолчанию `kyrgyz-learn/official-media/`). Удобно держать файлы
   курса в своей подпапке: `basics/salam.png` → `official-media/basics/salam.png`.

@@ -18,6 +18,7 @@ public record OfficialCourseFile(
         Long id,
         String title,
         String description,
+        String image, // картинка курса — путь относительно media-dir
         Integer position,
         List<Item> items
 ) {

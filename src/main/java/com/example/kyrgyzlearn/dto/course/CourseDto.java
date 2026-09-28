@@ -6,6 +6,7 @@ public record CourseDto(
         Long id,
         String title,
         String description,
+        String imageUrl, // картинка курса; null — картинки нет
         Integer position,
         CourseType type,
         Long ownerId, // null для OFFICIAL

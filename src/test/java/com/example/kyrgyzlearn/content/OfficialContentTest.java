@@ -81,6 +81,7 @@ class OfficialContentTest {
 
         // как это делают сервисы: меняют объекты в памяти и вызывают save
         course.setTitle("Новое название");
+        course.setImageObjectKey("test/salam.png");
         course.getVideos().clear();
 
         Lesson lesson = new Lesson();
@@ -113,6 +114,7 @@ class OfficialContentTest {
 
         Course reloaded = load().findCourse(-100L).orElseThrow();
         assertThat(reloaded.getTitle()).isEqualTo("Новое название");
+        assertThat(reloaded.getImageObjectKey()).isEqualTo("test/salam.png");
         assertThat(reloaded.getVideos()).isEmpty();
         assertThat(reloaded.getLessons()).extracting(Lesson::getTitle).containsExactly("Урок", "Второй урок");
         Question reloadedQuestion = (Question) reloaded.getLessons().get(1).getItems().get(0);
