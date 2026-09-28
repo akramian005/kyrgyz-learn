@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,16 @@ public class CourseController {
             Authentication authentication
     ) {
         return ResponseEntity.ok(courseService.getAllCourses(pageable, authentication));
+    }
+
+    // поиск личных курсов всех пользователей по названию; query пустой — все курсы, новые первыми
+    @GetMapping("/search")
+    public ResponseEntity<Page<CourseDto>> searchCourses(
+            @RequestParam(defaultValue = "") String query,
+            @PageableDefault(page = 0, size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+            Authentication authentication
+    ) {
+        return ResponseEntity.ok(courseService.searchCourses(query, pageable, authentication));
     }
 
     @GetMapping("/{id}")

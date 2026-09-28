@@ -9,7 +9,6 @@ import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.mapper.CourseVideoMapper;
 import com.example.kyrgyzlearn.mapper.LessonMapper;
-import com.example.kyrgyzlearn.repository.CourseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -33,22 +32,20 @@ public class CourseItemService {
             .thenComparing(item -> item instanceof Lesson ? 0 : 1)
             .thenComparing(CourseItem::getId, Comparator.nullsLast(Comparator.naturalOrder()));
 
-    private final CourseRepository courseRepository;
     private final CourseService courseService;
     private final LessonMapper lessonMapper;
     private final CourseVideoMapper courseVideoMapper;
 
     @Transactional(readOnly = true)
     public List<CourseItemDto> getItems(Long courseId, Authentication authentication) {
-        Course course = findCourseOrThrow(courseId);
-        courseService.requireCanView(course, authentication);
+        Course course = courseService.findCourseOrThrow(courseId);
         return toDtos(orderedItems(course));
     }
 
     // перемещает урок или видео на новую позицию, остальные элементы сдвигаются; возвращает новый порядок
     @Transactional
     public List<CourseItemDto> moveItem(Long courseId, CourseItemMoveRequest request, Authentication authentication) {
-        Course course = findCourseOrThrow(courseId);
+        Course course = courseService.findCourseOrThrow(courseId);
         courseService.requireCanModify(course, authentication);
 
         List<CourseItem> items = orderedItems(course);
@@ -113,10 +110,5 @@ public class CourseItemService {
             return courseVideoMapper.toDto(video);
         }
         throw new IllegalStateException("Unknown course item type: " + item.getClass());
-    }
-
-    private Course findCourseOrThrow(Long id) {
-        return courseRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + id));
     }
 }

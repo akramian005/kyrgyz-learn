@@ -8,7 +8,6 @@ import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.LessonItem;
 import com.example.kyrgyzlearn.mapper.LessonMapper;
-import com.example.kyrgyzlearn.repository.CourseRepository;
 import com.example.kyrgyzlearn.repository.LessonRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,7 +25,6 @@ import java.util.List;
 public class LessonService {
 
     private final LessonRepository lessonRepository;
-    private final CourseRepository courseRepository;
     private final CourseService courseService;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final LessonMapper lessonMapper;
@@ -34,21 +32,19 @@ public class LessonService {
 
     @Transactional(readOnly = true)
     public Page<LessonSummaryDto> getLessonsByCourse(Long courseId, Pageable pageable, Authentication authentication) {
-        Course course = findCourseOrThrow(courseId);
-        courseService.requireCanView(course, authentication);
+        Course course = courseService.findCourseOrThrow(courseId);
         return lessonRepository.findByCourseId(courseId, pageable).map(lessonMapper::toSummaryDto);
     }
 
     @Transactional(readOnly = true)
     public LessonDto getLessonById(Long id, Authentication authentication) {
         Lesson lesson = findLessonOrThrow(id);
-        courseService.requireCanView(lesson.getCourse(), authentication);
         return lessonMapper.toDto(lesson);
     }
 
     @Transactional
     public LessonDto createLesson(LessonCreateRequest request, Authentication authentication) {
-        Course course = findCourseOrThrow(request.courseId());
+        Course course = courseService.findCourseOrThrow(request.courseId());
         courseService.requireCanModify(course, authentication);
 
         Lesson lesson = new Lesson();
@@ -153,10 +149,5 @@ public class LessonService {
 
     private int clampIndex(int position, int size) {
         return Math.max(0, Math.min(position, size));
-    }
-
-    private Course findCourseOrThrow(Long id) {
-        return courseRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + id));
     }
 }
