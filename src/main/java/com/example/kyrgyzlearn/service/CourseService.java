@@ -5,6 +5,7 @@ import com.example.kyrgyzlearn.dto.course.CourseDto;
 import com.example.kyrgyzlearn.dto.course.CourseUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
+import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.repository.CourseRepository;
 import com.example.kyrgyzlearn.security.CustomUserDetails;
@@ -94,8 +95,11 @@ public class CourseService {
         for (Lesson lesson : course.getLessons()) {
             lessonMediaCleaner.deleteLessonMedia(lesson);
         }
+        for (CourseVideo video : course.getVideos()) {
+            lessonMediaCleaner.deleteVideoMedia(video);
+        }
 
-        courseRepository.delete(course); // каскадно удалит уроки и их содержимое
+        courseRepository.delete(course); // каскадно удалит уроки с их содержимым и видео
     }
 
     // ---------- Права доступа ----------
@@ -166,7 +170,8 @@ public class CourseService {
                 course.getPosition(),
                 course.getType(),
                 course.getOwner() != null ? course.getOwner().getId() : null,
-                course.getLessons().size()
+                course.getLessons().size(),
+                course.getVideos().size()
         );
     }
 }

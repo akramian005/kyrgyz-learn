@@ -30,6 +30,7 @@ public class LessonService {
     private final CourseService courseService;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final LessonMapper lessonMapper;
+    private final CourseItemService courseItemService;
 
     @Transactional(readOnly = true)
     public Page<LessonSummaryDto> getLessonsByCourse(Long courseId, Pageable pageable, Authentication authentication) {
@@ -54,7 +55,8 @@ public class LessonService {
         lesson.setCourse(course);
         lesson.setTitle(request.title());
         lesson.setDescription(request.description());
-        lesson.setPosition(request.position() != null ? request.position() : course.getLessons().size());
+        // порядок общий с видео курса: null — в конец, иначе сдвигаем остальные
+        courseItemService.insert(course, lesson, request.position());
 
         Lesson saved = lessonRepository.save(lesson);
         course.getLessons().add(saved);

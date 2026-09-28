@@ -21,11 +21,12 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  # по умолчанию Spring пропускает файлы только до 1MB — поднимаем до лимита аудио в FileStorageService
+  # по умолчанию Spring пропускает файлы только до 1MB — поднимаем до лимита видео в FileStorageService
+  # (лимиты картинок и аудио меньше, их проверяет сам FileStorageService)
   servlet:
     multipart:
-      max-file-size: 20MB
-      max-request-size: 21MB
+      max-file-size: 500MB
+      max-request-size: 501MB
 
   web:
     error:

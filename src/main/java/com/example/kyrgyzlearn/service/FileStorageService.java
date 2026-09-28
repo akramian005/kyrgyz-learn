@@ -61,6 +61,11 @@ public class FileStorageService {
         return uploadFile(folder, file, "audio/", 20 * 1024 * 1024); // Лимит 20 МБ для аудио
     }
 
+    // --- Методы для видео ---
+    public String uploadVideo(String folder, MultipartFile file) {
+        return uploadFile(folder, file, "video/", 500L * 1024 * 1024); // Лимит 500 МБ; такой же стоит в spring.servlet.multipart
+    }
+
     // --- Единый внутренний метод загрузки ---
     private String uploadFile(String folder, MultipartFile file, String allowedMimePrefix, long maxSizeBytes) {
         if (file.isEmpty()) {

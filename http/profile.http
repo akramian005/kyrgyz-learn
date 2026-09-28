@@ -1,0 +1,62 @@
+########################################################################
+### ПРОФИЛЬ текущего пользователя (/api/users/me)
+### Сначала выполнить логин USER из auth.http — нужен user_token
+########################################################################
+
+### Получить профиль
+GET {{host}}/api/users/me
+Authorization: Bearer {{user_token}}
+
+
+### Изменить имя
+PATCH {{host}}/api/users/me
+Content-Type: application/json
+Authorization: Bearer {{user_token}}
+
+{
+  "name": "Новое имя"
+}
+
+
+### Сменить почту — в ответе новый токен (старый привязан к прежней почте)
+PATCH {{host}}/api/users/me/email
+Content-Type: application/json
+Authorization: Bearer {{user_token}}
+
+{
+  "email": "user2@gmail.com",
+  "currentPassword": "12345678"
+}
+
+> {%
+    client.global.set("user_token", response.body.token);
+%}
+
+
+### Сменить пароль (неверный текущий пароль — 400)
+PATCH {{host}}/api/users/me/password
+Content-Type: application/json
+Authorization: Bearer {{user_token}}
+
+{
+  "currentPassword": "12345678",
+  "newPassword": "87654321"
+}
+
+
+### Загрузить аватар
+POST {{host}}/api/users/me/avatar
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: Bearer {{user_token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="avatar.jpeg"
+Content-Type: image/jpeg
+
+< images/image.jpeg
+--WebAppBoundary--
+
+
+### Удалить аватар
+DELETE {{host}}/api/users/me/avatar
+Authorization: Bearer {{user_token}}

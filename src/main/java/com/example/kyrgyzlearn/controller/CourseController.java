@@ -3,7 +3,10 @@ package com.example.kyrgyzlearn.controller;
 import com.example.kyrgyzlearn.dto.common.Nullable;
 import com.example.kyrgyzlearn.dto.course.CourseCreateRequest;
 import com.example.kyrgyzlearn.dto.course.CourseDto;
+import com.example.kyrgyzlearn.dto.course.CourseItemDto;
+import com.example.kyrgyzlearn.dto.course.CourseItemMoveRequest;
 import com.example.kyrgyzlearn.dto.course.CourseUpdateRequest;
+import com.example.kyrgyzlearn.service.CourseItemService;
 import com.example.kyrgyzlearn.service.CourseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +19,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import tools.jackson.databind.JsonNode;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
 public class CourseController {
 
     private final CourseService courseService;
+    private final CourseItemService courseItemService;
 
     @GetMapping
     public ResponseEntity<Page<CourseDto>> getAllCourses(
@@ -62,6 +68,24 @@ public class CourseController {
         courseService.deleteCourse(id, authentication);
         return ResponseEntity.noContent().build();
     }
+
+    // ---------- Уроки и видео курса одним списком ----------
+
+    @GetMapping("/{id}/items")
+    public ResponseEntity<List<CourseItemDto>> getCourseItems(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(courseItemService.getItems(id, authentication));
+    }
+
+    // переместить урок или видео внутри курса; возвращает новый порядок
+    @PatchMapping("/{id}/items/position")
+    public ResponseEntity<List<CourseItemDto>> moveCourseItem(
+            @PathVariable Long id,
+            @Valid @RequestBody CourseItemMoveRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(courseItemService.moveItem(id, request, authentication));
+    }
+
+    // ---------- Разбор PATCH-тела ----------
 
     private Nullable<String> extractString(JsonNode body, String field) {
         if (!body.has(field)) return Nullable.undefined();

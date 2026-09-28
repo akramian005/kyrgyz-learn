@@ -14,6 +14,7 @@ POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {
+  "name": "Админ",
   "email": "admin@gmail.com",
   "password": "12345678"
 }
@@ -50,6 +51,7 @@ POST {{host}}/api/auth/register
 Content-Type: application/json
 
 {
+  "name": "Ученик",
   "email": "user@gmail.com",
   "password": "12345678"
 }

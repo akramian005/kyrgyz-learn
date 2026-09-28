@@ -27,4 +27,10 @@ public class User { //implements UserDetails
     private Role role;
 
     private String phone;
+
+    // отображаемое имя; у аккаунтов, созданных до появления поля, может быть null
+    private String name;
+
+    // ключ картинки в MinIO; ссылку для клиента подписывает FileStorageService
+    private String avatarObjectKey;
 }

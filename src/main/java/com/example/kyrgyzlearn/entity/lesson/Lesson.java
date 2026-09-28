@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Lesson {
+public class Lesson implements CourseItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,7 +21,7 @@ public class Lesson {
     private String title;
     private String description;
 
-    // порядок урока внутри курса
+    // порядок урока внутри курса — общий с видео (см. CourseItem)
     private Integer position;
 
     @ManyToOne

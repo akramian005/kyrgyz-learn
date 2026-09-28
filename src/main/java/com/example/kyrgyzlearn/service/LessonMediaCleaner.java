@@ -1,5 +1,6 @@
 package com.example.kyrgyzlearn.service;
 
+import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.LessonItem;
 import com.example.kyrgyzlearn.entity.lesson.LessonMessage;
@@ -7,8 +8,8 @@ import com.example.kyrgyzlearn.entity.lesson.Question;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-// Удаляет файлы уроков из MinIO. Вынесено отдельно, чтобы им пользовались
-// и LessonService, и CourseService без циклической зависимости между ними.
+// Удаляет файлы уроков и видео курса из MinIO. Вынесено отдельно, чтобы им пользовались
+// LessonService, CourseVideoService и CourseService без циклической зависимости между ними.
 @Component
 @RequiredArgsConstructor
 public class LessonMediaCleaner {
@@ -28,6 +29,10 @@ public class LessonMediaCleaner {
             deleteIfPresent(m.getImageObjectKey());
             deleteIfPresent(m.getAudioObjectKey());
         }
+    }
+
+    public void deleteVideoMedia(CourseVideo video) {
+        deleteIfPresent(video.getVideoObjectKey());
     }
 
     private void deleteIfPresent(String objectKey) {

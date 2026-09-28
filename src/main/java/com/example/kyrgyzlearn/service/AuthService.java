@@ -37,6 +37,7 @@ public class AuthService {
 
         User user = User.builder()
                 .email(email)
+                .name(request.name().trim())
                 .password(passwordEncoder.encode(request.password()))
                 .role(Role.USER)
                 .build();
@@ -46,7 +47,7 @@ public class AuthService {
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String token = jwtService.generateToken(userDetails);
 
-        return new AuthResponse(token, user.getEmail(), user.getRole().name());
+        return new AuthResponse(token, user.getEmail(), user.getName(), user.getRole().name());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -66,7 +67,7 @@ public class AuthService {
         CustomUserDetails userDetails = new CustomUserDetails(user);
         String token = jwtService.generateToken(userDetails);
 
-        return new AuthResponse(token, user.getEmail(), user.getRole().name());
+        return new AuthResponse(token, user.getEmail(), user.getName(), user.getRole().name());
     }
 
     private String normalizeEmail(String email) {

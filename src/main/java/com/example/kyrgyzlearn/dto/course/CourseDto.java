@@ -9,6 +9,7 @@ public record CourseDto(
         Integer position,
         CourseType type,
         Long ownerId, // null для OFFICIAL
-        int lessonCount
+        int lessonCount,
+        int videoCount
 ) {
 }

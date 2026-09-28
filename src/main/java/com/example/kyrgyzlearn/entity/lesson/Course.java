@@ -37,4 +37,9 @@ public class Course {
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<Lesson> lessons = new ArrayList<>();
+
+    // видео стоят между уроками: порядок общий, см. CourseItemService
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<CourseVideo> videos = new ArrayList<>();
 }
