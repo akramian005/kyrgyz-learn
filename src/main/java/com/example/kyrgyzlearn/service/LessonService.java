@@ -1,10 +1,12 @@
 package com.example.kyrgyzlearn.service;
 
+import com.example.kyrgyzlearn.content.OfficialContent;
 import com.example.kyrgyzlearn.dto.lesson.LessonCreateRequest;
 import com.example.kyrgyzlearn.dto.lesson.LessonDto;
 import com.example.kyrgyzlearn.dto.lesson.LessonSummaryDto;
 import com.example.kyrgyzlearn.dto.lesson.LessonUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
+import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.LessonItem;
 import com.example.kyrgyzlearn.mapper.LessonMapper;
@@ -25,6 +27,7 @@ import java.util.List;
 public class LessonService {
 
     private final LessonRepository lessonRepository;
+    private final OfficialContent officialContent;
     private final CourseService courseService;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final LessonMapper lessonMapper;
@@ -33,6 +36,10 @@ public class LessonService {
     @Transactional(readOnly = true)
     public Page<LessonSummaryDto> getLessonsByCourse(Long courseId, Pageable pageable, Authentication authentication) {
         Course course = courseService.findCourseOrThrow(courseId);
+        if (course.getType() == CourseType.OFFICIAL) {
+            // уроки официального курса только в памяти, они уже идут по порядку
+            return Pages.of(course.getLessons().stream().map(lessonMapper::toSummaryDto).toList(), pageable);
+        }
         return lessonRepository.findByCourseId(courseId, pageable).map(lessonMapper::toSummaryDto);
     }
 
@@ -118,7 +125,8 @@ public class LessonService {
     // публичные — их вызывают другие сервисы (через Spring-прокси)
 
     public Lesson findLessonOrThrow(Long id) {
-        return lessonRepository.findById(id)
+        return officialContent.findLesson(id)
+                .or(() -> lessonRepository.findById(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lesson not found: " + id));
     }
 

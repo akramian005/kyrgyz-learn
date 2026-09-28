@@ -11,7 +11,6 @@ import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.LessonItem;
 import com.example.kyrgyzlearn.entity.lesson.LessonMessage;
 import com.example.kyrgyzlearn.entity.lesson.Question;
-import com.example.kyrgyzlearn.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class LessonMapper {
 
-    private final FileStorageService fileStorageService;
+    private final MediaUrls mediaUrls;
 
     public LessonSummaryDto toSummaryDto(Lesson lesson) {
         return new LessonSummaryDto(
@@ -69,7 +68,7 @@ public class LessonMapper {
                 question.getId(),
                 question.getPosition(),
                 question.getText(),
-                question.getAudioObjectKey() != null ? fileStorageService.getPresignedUrl(question.getAudioObjectKey()) : null,
+                mediaUrls.url(question.getAudioObjectKey(), question.getLesson().getCourse()),
                 question.getType(),
                 options
         );
@@ -80,8 +79,8 @@ public class LessonMapper {
                 message.getId(),
                 message.getPosition(),
                 message.getText(),
-                message.getImageObjectKey() != null ? fileStorageService.getPresignedUrl(message.getImageObjectKey()) : null,
-                message.getAudioObjectKey() != null ? fileStorageService.getPresignedUrl(message.getAudioObjectKey()) : null
+                mediaUrls.url(message.getImageObjectKey(), message.getLesson().getCourse()),
+                mediaUrls.url(message.getAudioObjectKey(), message.getLesson().getCourse())
         );
     }
 

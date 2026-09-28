@@ -4,18 +4,17 @@ import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
+// В БД только пользовательские курсы; официальные читаются из файлов (см. OfficialContent)
 public interface CourseRepository extends JpaRepository<Course, Long> {
 
-    // Видно: все OFFICIAL-курсы + свои USER-курсы (userId может быть null для анонима —
-    // тогда вторая часть условия просто не сработает, останутся только OFFICIAL).
-    @Query("SELECT c FROM Course c WHERE c.type = 'OFFICIAL' " +
-            "OR (:userId IS NOT NULL AND c.type = 'USER' AND c.owner.id = :userId)")
-    Page<Course> findVisibleTo(@Param("userId") Long userId, Pageable pageable);
+    List<Course> findByOwnerId(Long ownerId, Sort sort);
 
-    // поиск личных курсов всех пользователей по названию; пустая строка — все курсы
+    // поиск личных курсов всех пользователей по названию; пустая строка — все курсы.
+    // type = USER отсекает старые OFFICIAL-записи, если они ещё остались в БД
     Page<Course> findByTypeAndTitleContainingIgnoreCase(CourseType type, String title, Pageable pageable);
 }

@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Медиа официальных курсов ###
+# видео тяжёлые — копируются на сервер отдельно; картинки и аудио хранятся в git
+official-media/**/*.mp4
+official-media/**/*.mov
+official-media/**/*.webm
+official-media/**/*.m4v

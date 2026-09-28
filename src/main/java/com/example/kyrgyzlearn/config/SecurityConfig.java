@@ -81,11 +81,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/error").permitAll()
+                        // файлы официальных курсов (см. OfficialMediaConfig) — как и сами курсы, открыты всем
+                        .requestMatchers(HttpMethod.GET, "/media/official/**").permitAll()
 
-                        // Курсы: чтение открыто всем (видимость USER-курсов фильтрует CourseService
-                        // по текущему юзеру — анонимам это ничем не грозит, они просто видят OFFICIAL).
+                        // Курсы: чтение открыто всем (официальные — на главной, личные — через поиск).
                         // Создание/изменение/удаление — авторизованным, а какой именно курс им можно
-                        // трогать (OFFICIAL только админ, USER только владелец) решает CourseService.
+                        // трогать (OFFICIAL — никому, USER — только владельцу) решает CourseService.
                         .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/courses/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/courses/**").authenticated()

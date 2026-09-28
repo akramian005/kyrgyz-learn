@@ -2,7 +2,6 @@ package com.example.kyrgyzlearn.mapper;
 
 import com.example.kyrgyzlearn.dto.video.CourseVideoDto;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
-import com.example.kyrgyzlearn.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +9,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CourseVideoMapper {
 
-    private final FileStorageService fileStorageService;
+    private final MediaUrls mediaUrls;
 
     public CourseVideoDto toDto(CourseVideo video) {
         return new CourseVideoDto(
@@ -19,7 +18,7 @@ public class CourseVideoMapper {
                 video.getPosition(),
                 video.getTitle(),
                 video.getDescription(),
-                video.getVideoObjectKey() != null ? fileStorageService.getPresignedUrl(video.getVideoObjectKey()) : null
+                mediaUrls.url(video.getVideoObjectKey(), video.getCourse())
         );
     }
 }

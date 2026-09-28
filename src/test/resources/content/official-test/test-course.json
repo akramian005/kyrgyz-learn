@@ -1,0 +1,25 @@
+{
+  "id": -100,
+  "title": "Тестовый курс",
+  "position": 5,
+  "items": [
+    {
+      "kind": "LESSON",
+      "id": -100,
+      "title": "Урок",
+      "items": [
+        { "kind": "MESSAGE", "text": "Салам", "image": "test/salam.png" },
+        {
+          "kind": "QUESTION",
+          "text": "Как сказать «привет»?",
+          "type": "SINGLE_CHOICE",
+          "options": [
+            { "text": "Салам", "correct": true },
+            { "text": "Рахмат" }
+          ]
+        }
+      ]
+    },
+    { "kind": "VIDEO", "id": -100, "title": "Видео", "video": "test/video.mp4" }
+  ]
+}
