@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -32,15 +33,20 @@ public class LessonService {
     private final LessonMediaCleaner lessonMediaCleaner;
     private final LessonMapper lessonMapper;
     private final CourseItemService courseItemService;
+    private final ProgressService progressService;
 
     @Transactional(readOnly = true)
     public Page<LessonSummaryDto> getLessonsByCourse(Long courseId, Pageable pageable, Authentication authentication) {
         Course course = courseService.findCourseOrThrow(courseId);
+        Set<Long> doneIds = progressService.completed(authentication).lessonIds();
         if (course.getType() == CourseType.OFFICIAL) {
             // уроки официального курса только в памяти, они уже идут по порядку
-            return Pages.of(course.getLessons().stream().map(lessonMapper::toSummaryDto).toList(), pageable);
+            return Pages.of(course.getLessons().stream()
+                    .map(lesson -> lessonMapper.toSummaryDto(lesson, doneIds.contains(lesson.getId())))
+                    .toList(), pageable);
         }
-        return lessonRepository.findByCourseId(courseId, pageable).map(lessonMapper::toSummaryDto);
+        return lessonRepository.findByCourseId(courseId, pageable)
+                .map(lesson -> lessonMapper.toSummaryDto(lesson, doneIds.contains(lesson.getId())));
     }
 
     @Transactional(readOnly = true)
@@ -96,7 +102,14 @@ public class LessonService {
 
         lessonMediaCleaner.deleteLessonMedia(lesson);
 
+        progressService.deleteForLesson(lesson.getId());
         lessonRepository.delete(lesson); // каскадно удалит items и options
+    }
+
+    // урок пройден до конца — отмечаем в прогрессе (курс любой: официальный или личный)
+    @Transactional
+    public void completeLesson(Long id, Authentication authentication) {
+        progressService.markCompleted(findLessonOrThrow(id), authentication);
     }
 
     // ---------- Порядок элементов урока ----------

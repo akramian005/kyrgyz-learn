@@ -24,14 +24,15 @@ public class LessonMapper {
 
     private final MediaUrls mediaUrls;
 
-    public LessonSummaryDto toSummaryDto(Lesson lesson) {
+    public LessonSummaryDto toSummaryDto(Lesson lesson, boolean completed) {
         return new LessonSummaryDto(
                 lesson.getId(),
                 lesson.getCourse().getId(),
                 lesson.getTitle(),
                 lesson.getDescription(),
                 lesson.getPosition(),
-                lesson.getItems().size()
+                lesson.getItems().size(),
+                completed
         );
     }
 

@@ -10,7 +10,8 @@ public record CourseVideoDto(
         String title,
         String description,
         // подписанная ссылка на файл, живёт час; null — файл ещё не загружен
-        String videoUrl
+        String videoUrl,
+        boolean watched // текущий пользователь уже открывал это видео
 ) implements CourseItemDto {
     // без @JsonProperty Jackson не видит kind(): это не компонент record и не getter
     @Override

@@ -11,14 +11,15 @@ public class CourseVideoMapper {
 
     private final MediaUrls mediaUrls;
 
-    public CourseVideoDto toDto(CourseVideo video) {
+    public CourseVideoDto toDto(CourseVideo video, boolean watched) {
         return new CourseVideoDto(
                 video.getId(),
                 video.getCourse().getId(),
                 video.getPosition(),
                 video.getTitle(),
                 video.getDescription(),
-                mediaUrls.url(video.getVideoObjectKey(), video.getCourse())
+                mediaUrls.url(video.getVideoObjectKey(), video.getCourse()),
+                watched
         );
     }
 }

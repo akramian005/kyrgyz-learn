@@ -28,11 +28,18 @@ public class CourseVideoService {
     private final FileStorageService fileStorageService;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final CourseVideoMapper courseVideoMapper;
+    private final ProgressService progressService;
 
     @Transactional(readOnly = true)
     public CourseVideoDto getVideo(Long courseId, Long videoId, Authentication authentication) {
         CourseVideo video = findVideoOrThrow(courseId, videoId);
-        return courseVideoMapper.toDto(video);
+        return toDto(video, authentication);
+    }
+
+    // видео открыли — считаем просмотренным (прогресс курса)
+    @Transactional
+    public void watchVideo(Long courseId, Long videoId, Authentication authentication) {
+        progressService.markWatched(findVideoOrThrow(courseId, videoId), authentication);
     }
 
     // файл загружается отдельным запросом (uploadVideoFile), как картинки и аудио у сообщений
@@ -50,7 +57,7 @@ public class CourseVideoService {
         CourseVideo saved = courseVideoRepository.save(video);
         course.getVideos().add(saved);
 
-        return courseVideoMapper.toDto(saved);
+        return courseVideoMapper.toDto(saved, false);
     }
 
     @Transactional
@@ -69,7 +76,7 @@ public class CourseVideoService {
             video.setDescription(request.description().get());
         }
 
-        return courseVideoMapper.toDto(courseVideoRepository.save(video));
+        return toDto(courseVideoRepository.save(video), authentication);
     }
 
     @Transactional
@@ -78,6 +85,7 @@ public class CourseVideoService {
         courseService.requireCanModify(video.getCourse(), authentication);
 
         lessonMediaCleaner.deleteVideoMedia(video);
+        progressService.deleteForVideo(video.getId());
         video.getCourse().getVideos().remove(video); // orphanRemoval удалит запись из БД
     }
 
@@ -121,5 +129,9 @@ public class CourseVideoService {
                     "Video " + videoId + " does not belong to course " + courseId);
         }
         return video;
+    }
+
+    private CourseVideoDto toDto(CourseVideo video, Authentication authentication) {
+        return courseVideoMapper.toDto(video, progressService.completed(authentication).videoIds().contains(video.getId()));
     }
 }
