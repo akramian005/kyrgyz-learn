@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
@@ -77,6 +78,23 @@ public class CourseController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id, Authentication authentication) {
         courseService.deleteCourse(id, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ---------- Картинка курса ----------
+
+    // возвращает ссылку на загруженную картинку; старая удаляется
+    @PostMapping("/{id}/image")
+    public ResponseEntity<String> uploadImage(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(courseService.uploadImage(id, file, authentication));
+    }
+
+    @DeleteMapping("/{id}/image")
+    public ResponseEntity<Void> deleteImage(@PathVariable Long id, Authentication authentication) {
+        courseService.deleteImage(id, authentication);
         return ResponseEntity.noContent().build();
     }
 

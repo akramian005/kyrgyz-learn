@@ -215,6 +215,7 @@ public class OfficialContent {
         course.setId(requireNewId(file.id(), "course", courses.stream().map(Course::getId)));
         course.setTitle(requireText(file.title(), "course " + file.id() + " title"));
         course.setDescription(file.description());
+        course.setImageObjectKey(media(file.image()));
         course.setPosition(file.position() != null ? file.position() : 0);
         course.setType(CourseType.OFFICIAL);
 
@@ -306,7 +307,7 @@ public class OfficialContent {
                 .map(item -> item instanceof Lesson lesson ? toFile(lesson) : toFile((CourseVideo) item))
                 .toList();
         return new OfficialCourseFile(course.getId(), course.getTitle(), blankToNull(course.getDescription()),
-                course.getPosition(), items);
+                course.getImageObjectKey(), course.getPosition(), items);
     }
 
     private OfficialCourseFile.Item toFile(Lesson lesson) {

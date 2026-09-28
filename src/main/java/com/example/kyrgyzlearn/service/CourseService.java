@@ -20,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public class CourseService {
     private final LessonMediaCleaner lessonMediaCleaner;
     private final CourseMapper courseMapper;
     private final ProgressService progressService;
+    private final CourseMedia courseMedia;
 
     // Главная и «Прочее»: сначала официальные курсы (из файлов, в своём порядке), затем свои USER-курсы из БД.
     // Чужие личные курсы здесь не показываются — их находят через search.
@@ -123,6 +125,7 @@ public class CourseService {
         requireCanModify(course, authentication);
 
         // файлы в MinIO каскад не трогает — чистим их вручную
+        courseMedia.delete(course, course.getImageObjectKey());
         for (Lesson lesson : course.getLessons()) {
             lessonMediaCleaner.deleteLessonMedia(lesson);
         }
@@ -136,6 +139,37 @@ public class CourseService {
             officialContent.remove(course); // удаляет JSON-файл курса
         } else {
             courseRepository.delete(course); // каскадно удалит уроки с их содержимым и видео
+        }
+    }
+
+    // ---------- Картинка курса ----------
+
+    // новая картинка заменяет старую (старый файл удаляется); возвращает ссылку на новую
+    @Transactional
+    public String uploadImage(Long id, MultipartFile file, Authentication authentication) {
+        Course course = findCourseOrThrow(id);
+        requireCanModify(course, authentication);
+
+        courseMedia.delete(course, course.getImageObjectKey());
+        String key = courseMedia.upload(course, "courses/" + id + "/image", file, FileStorageService.Kind.IMAGE);
+        course.setImageObjectKey(key);
+        if (!saveIfOfficial(course)) {
+            courseRepository.save(course);
+        }
+        return courseMedia.url(course, key);
+    }
+
+    @Transactional
+    public void deleteImage(Long id, Authentication authentication) {
+        Course course = findCourseOrThrow(id);
+        requireCanModify(course, authentication);
+
+        if (course.getImageObjectKey() != null) {
+            courseMedia.delete(course, course.getImageObjectKey());
+            course.setImageObjectKey(null);
+            if (!saveIfOfficial(course)) {
+                courseRepository.save(course);
+            }
         }
     }
 

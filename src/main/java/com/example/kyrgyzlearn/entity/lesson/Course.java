@@ -26,6 +26,9 @@ public class Course {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // картинка курса: ключ в MinIO у личных курсов, путь в official-media у официальных (см. CourseMedia)
+    private String imageObjectKey;
+
     private Integer position;
 
     @Enumerated(EnumType.STRING)
