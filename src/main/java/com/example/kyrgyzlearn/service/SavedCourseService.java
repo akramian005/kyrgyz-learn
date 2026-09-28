@@ -27,12 +27,14 @@ public class SavedCourseService {
     private final UserRepository userRepository;
     private final CourseService courseService;
     private final CourseMapper courseMapper;
+    private final ProgressService progressService;
 
     // последние сохранённые — первыми
     @Transactional(readOnly = true)
     public List<CourseDto> getSavedCourses(Authentication authentication) {
+        ProgressService.Completed completed = progressService.completed(authentication);
         return savedCourseRepository.findByUserIdOrderBySavedAtDesc(currentUserId(authentication)).stream()
-                .map(saved -> courseMapper.toDto(saved.getCourse(), true))
+                .map(saved -> courseMapper.toDto(saved.getCourse(), true, completed))
                 .toList();
     }
 

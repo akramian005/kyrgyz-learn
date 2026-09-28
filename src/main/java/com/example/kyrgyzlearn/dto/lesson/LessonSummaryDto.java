@@ -9,7 +9,8 @@ public record LessonSummaryDto(
         String title,
         String description,
         Integer position,
-        int itemCount
+        int itemCount,
+        boolean completed // урок пройден текущим пользователем
 ) implements CourseItemDto {
     // без @JsonProperty Jackson не видит kind(): это не компонент record и не getter
     @Override

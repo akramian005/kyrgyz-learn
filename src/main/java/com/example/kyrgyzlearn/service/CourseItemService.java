@@ -35,11 +35,12 @@ public class CourseItemService {
     private final CourseService courseService;
     private final LessonMapper lessonMapper;
     private final CourseVideoMapper courseVideoMapper;
+    private final ProgressService progressService;
 
     @Transactional(readOnly = true)
     public List<CourseItemDto> getItems(Long courseId, Authentication authentication) {
         Course course = courseService.findCourseOrThrow(courseId);
-        return toDtos(orderedItems(course));
+        return toDtos(orderedItems(course), progressService.completed(authentication));
     }
 
     // перемещает урок или видео на новую позицию, остальные элементы сдвигаются; возвращает новый порядок
@@ -59,7 +60,7 @@ public class CourseItemService {
         items.add(clampIndex(request.position(), items.size()), item);
         renumber(items);
 
-        return toDtos(items);
+        return toDtos(items, progressService.completed(authentication));
     }
 
     // Для LessonService и CourseVideoService: ставит новый элемент (ещё не добавленный в курс)
@@ -99,15 +100,15 @@ public class CourseItemService {
         return Math.max(0, Math.min(position, size));
     }
 
-    private List<CourseItemDto> toDtos(List<CourseItem> items) {
-        return items.stream().map(this::toDto).toList();
+    private List<CourseItemDto> toDtos(List<CourseItem> items, ProgressService.Completed completed) {
+        return items.stream().map(item -> toDto(item, completed)).toList();
     }
 
-    private CourseItemDto toDto(CourseItem item) {
+    private CourseItemDto toDto(CourseItem item, ProgressService.Completed completed) {
         if (item instanceof Lesson lesson) {
-            return lessonMapper.toSummaryDto(lesson);
+            return lessonMapper.toSummaryDto(lesson, completed.lessonIds().contains(lesson.getId()));
         } else if (item instanceof CourseVideo video) {
-            return courseVideoMapper.toDto(video);
+            return courseVideoMapper.toDto(video, completed.videoIds().contains(video.getId()));
         }
         throw new IllegalStateException("Unknown course item type: " + item.getClass());
     }

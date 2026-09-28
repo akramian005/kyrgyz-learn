@@ -35,6 +35,7 @@ public class CourseService {
     private final OfficialContent officialContent;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final CourseMapper courseMapper;
+    private final ProgressService progressService;
 
     // Главная и «Прочее»: сначала официальные курсы (из файлов, в своём порядке), затем свои USER-курсы из БД.
     // Чужие личные курсы здесь не показываются — их находят через search.
@@ -42,11 +43,12 @@ public class CourseService {
     public Page<CourseDto> getAllCourses(Pageable pageable, Authentication authentication) {
         Long userId = currentUserIdOrNull(authentication);
         Set<Long> savedIds = savedCourseIds(userId);
+        ProgressService.Completed completed = progressService.completed(authentication);
 
         List<CourseDto> all = new ArrayList<>();
-        officialContent.getCourses().forEach(course -> all.add(toDto(course, savedIds)));
+        officialContent.getCourses().forEach(course -> all.add(toDto(course, savedIds, completed)));
         if (userId != null) {
-            courseRepository.findByOwnerId(userId, pageable.getSort()).forEach(course -> all.add(toDto(course, savedIds)));
+            courseRepository.findByOwnerId(userId, pageable.getSort()).forEach(course -> all.add(toDto(course, savedIds, completed)));
         }
         return Pages.of(all, pageable);
     }
@@ -55,15 +57,17 @@ public class CourseService {
     @Transactional(readOnly = true)
     public Page<CourseDto> searchCourses(String query, Pageable pageable, Authentication authentication) {
         Set<Long> savedIds = savedCourseIds(currentUserIdOrNull(authentication));
+        ProgressService.Completed completed = progressService.completed(authentication);
         String title = query != null ? query.trim() : "";
         return courseRepository.findByTypeAndTitleContainingIgnoreCase(CourseType.USER, title, pageable)
-                .map(course -> toDto(course, savedIds));
+                .map(course -> toDto(course, savedIds, completed));
     }
 
     // любой курс открыт для просмотра всем: официальные — на главной, личные — через поиск
     @Transactional(readOnly = true)
     public CourseDto getCourseById(Long id, Authentication authentication) {
-        return toDto(findCourseOrThrow(id), savedCourseIds(currentUserIdOrNull(authentication)));
+        return toDto(findCourseOrThrow(id), savedCourseIds(currentUserIdOrNull(authentication)),
+                progressService.completed(authentication));
     }
 
     // через API создаются только личные курсы (у админа тоже) — официальные лежат в content/official
@@ -76,7 +80,7 @@ public class CourseService {
         course.setType(CourseType.USER);
         course.setOwner(getCurrentUser(authentication));
 
-        return courseMapper.toDto(courseRepository.save(course), false);
+        return courseMapper.toDto(courseRepository.save(course), false, ProgressService.Completed.NONE);
     }
 
     @Transactional
@@ -99,7 +103,8 @@ public class CourseService {
         }
 
         Course saved = courseRepository.save(course);
-        return toDto(saved, savedCourseIds(currentUserIdOrNull(authentication)));
+        return toDto(saved, savedCourseIds(currentUserIdOrNull(authentication)),
+                progressService.completed(authentication));
     }
 
     @Transactional
@@ -116,6 +121,7 @@ public class CourseService {
         }
 
         savedCourseRepository.deleteByCourseId(course.getId()); // курс мог быть в сохранённых у других
+        progressService.deleteForCourse(course.getId());
         courseRepository.delete(course); // каскадно удалит уроки с их содержимым и видео
     }
 
@@ -167,7 +173,7 @@ public class CourseService {
         return userId != null ? savedCourseRepository.findCourseIdsByUserId(userId) : Set.of();
     }
 
-    private CourseDto toDto(Course course, Set<Long> savedIds) {
-        return courseMapper.toDto(course, savedIds.contains(course.getId()));
+    private CourseDto toDto(Course course, Set<Long> savedIds, ProgressService.Completed completed) {
+        return courseMapper.toDto(course, savedIds.contains(course.getId()), completed);
     }
 }

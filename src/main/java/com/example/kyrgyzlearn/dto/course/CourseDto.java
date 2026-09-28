@@ -12,6 +12,8 @@ public record CourseDto(
         String ownerName, // имя создателя; null для OFFICIAL и у пользователей без имени
         int lessonCount,
         int videoCount,
+        int completedItemCount, // сколько уроков и видео курса прошёл (посмотрел) текущий пользователь
+        int totalItemCount, // сколько всего уроков и видео идут в прогресс (без пустых уроков и видео без файла)
         boolean saved // курс в сохранённых у текущего пользователя
 ) {
 }
