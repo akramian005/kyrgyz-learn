@@ -7,7 +7,9 @@ import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
+import com.example.kyrgyzlearn.mapper.CourseMapper;
 import com.example.kyrgyzlearn.repository.CourseRepository;
+import com.example.kyrgyzlearn.repository.SavedCourseRepository;
 import com.example.kyrgyzlearn.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -27,23 +30,34 @@ public class CourseService {
     private static final String ADMIN_AUTHORITY = "ROLE_ADMIN";
 
     private final CourseRepository courseRepository;
+    private final SavedCourseRepository savedCourseRepository;
     private final LessonMediaCleaner lessonMediaCleaner;
+    private final CourseMapper courseMapper;
 
     @Transactional(readOnly = true)
     public Page<CourseDto> getAllCourses(Pageable pageable, Authentication authentication) {
+        Long userId = currentUserIdOrNull(authentication);
+        Set<Long> savedIds = savedCourseIds(userId);
         if (isAdmin(authentication)) {
-            return courseRepository.findAll(pageable).map(this::toDto);
+            return courseRepository.findAll(pageable).map(course -> toDto(course, savedIds));
         }
         // не-админ видит только OFFICIAL-курсы + свои собственные USER-курсы
-        Long userId = currentUserIdOrNull(authentication);
-        return courseRepository.findVisibleTo(userId, pageable).map(this::toDto);
+        return courseRepository.findVisibleTo(userId, pageable).map(course -> toDto(course, savedIds));
     }
 
+    // «Поиск»: личные курсы всех пользователей по названию, постранично (официальные — на главной)
+    @Transactional(readOnly = true)
+    public Page<CourseDto> searchCourses(String query, Pageable pageable, Authentication authentication) {
+        Set<Long> savedIds = savedCourseIds(currentUserIdOrNull(authentication));
+        String title = query != null ? query.trim() : "";
+        return courseRepository.findByTypeAndTitleContainingIgnoreCase(CourseType.USER, title, pageable)
+                .map(course -> toDto(course, savedIds));
+    }
+
+    // любой курс открыт для просмотра всем: официальные — на главной, личные — через поиск
     @Transactional(readOnly = true)
     public CourseDto getCourseById(Long id, Authentication authentication) {
-        Course course = findCourseOrThrow(id);
-        requireCanView(course, authentication);
-        return toDto(course);
+        return toDto(findCourseOrThrow(id), savedCourseIds(currentUserIdOrNull(authentication)));
     }
 
     @Transactional
@@ -61,7 +75,7 @@ public class CourseService {
             course.setOwner(getCurrentUser(authentication));
         }
 
-        return toDto(courseRepository.save(course));
+        return courseMapper.toDto(courseRepository.save(course), false);
     }
 
     @Transactional
@@ -83,7 +97,8 @@ public class CourseService {
             course.setPosition(request.position().get());
         }
 
-        return toDto(courseRepository.save(course));
+        Course saved = courseRepository.save(course);
+        return toDto(saved, savedCourseIds(currentUserIdOrNull(authentication)));
     }
 
     @Transactional
@@ -99,27 +114,13 @@ public class CourseService {
             lessonMediaCleaner.deleteVideoMedia(video);
         }
 
+        savedCourseRepository.deleteByCourseId(course.getId()); // курс мог быть в сохранённых у других
         courseRepository.delete(course); // каскадно удалит уроки с их содержимым и видео
     }
 
     // ---------- Права доступа ----------
-    // Оба метода публичные — их же вызывает LessonService для проверки прав
+    // Публичный — его же вызывают LessonService, QuestionService и др. для проверки прав
     // на урок через его course, так как правило одно и то же: "не в своём курсе — нельзя".
-
-    public void requireCanView(Course course, Authentication authentication) {
-        if (course.getType() == CourseType.OFFICIAL) {
-            return; // общие курсы видны всем
-        }
-        if (isAdmin(authentication)) {
-            return;
-        }
-        Long userId = currentUserIdOrNull(authentication);
-        Long ownerId = course.getOwner() != null ? course.getOwner().getId() : null;
-        if (!Objects.equals(userId, ownerId)) {
-            // 404, а не 403 — не палим само существование чужого курса
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + course.getId());
-        }
-    }
 
     public void requireCanModify(Course course, Authentication authentication) {
         if (course.getType() == CourseType.OFFICIAL) {
@@ -155,23 +156,21 @@ public class CourseService {
         return principal.getUser();
     }
 
-    // ---------- Вспомогательные ----------
+    // ---------- Поиск курса ----------
 
-    private Course findCourseOrThrow(Long id) {
+    // публичный — им же ищут курс LessonService, CourseVideoService, CourseItemService и SavedCourseService
+    public Course findCourseOrThrow(Long id) {
         return courseRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + id));
     }
 
-    private CourseDto toDto(Course course) {
-        return new CourseDto(
-                course.getId(),
-                course.getTitle(),
-                course.getDescription(),
-                course.getPosition(),
-                course.getType(),
-                course.getOwner() != null ? course.getOwner().getId() : null,
-                course.getLessons().size(),
-                course.getVideos().size()
-        );
+    // ---------- Вспомогательные ----------
+
+    private Set<Long> savedCourseIds(Long userId) {
+        return userId != null ? savedCourseRepository.findCourseIdsByUserId(userId) : Set.of();
+    }
+
+    private CourseDto toDto(Course course, Set<Long> savedIds) {
+        return courseMapper.toDto(course, savedIds.contains(course.getId()));
     }
 }

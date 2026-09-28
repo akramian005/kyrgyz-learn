@@ -1,6 +1,7 @@
 package com.example.kyrgyzlearn.repository;
 
 import com.example.kyrgyzlearn.entity.lesson.Course;
+import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +15,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     @Query("SELECT c FROM Course c WHERE c.type = 'OFFICIAL' " +
             "OR (:userId IS NOT NULL AND c.type = 'USER' AND c.owner.id = :userId)")
     Page<Course> findVisibleTo(@Param("userId") Long userId, Pageable pageable);
+
+    // поиск личных курсов всех пользователей по названию; пустая строка — все курсы
+    Page<Course> findByTypeAndTitleContainingIgnoreCase(CourseType type, String title, Pageable pageable);
 }

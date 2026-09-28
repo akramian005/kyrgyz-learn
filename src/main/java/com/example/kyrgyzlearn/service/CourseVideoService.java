@@ -6,7 +6,6 @@ import com.example.kyrgyzlearn.dto.video.CourseVideoUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.mapper.CourseVideoMapper;
-import com.example.kyrgyzlearn.repository.CourseRepository;
 import com.example.kyrgyzlearn.repository.CourseVideoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class CourseVideoService {
 
     private final CourseVideoRepository courseVideoRepository;
-    private final CourseRepository courseRepository;
     private final CourseService courseService;
     private final CourseItemService courseItemService;
     private final FileStorageService fileStorageService;
@@ -32,15 +30,13 @@ public class CourseVideoService {
     @Transactional(readOnly = true)
     public CourseVideoDto getVideo(Long courseId, Long videoId, Authentication authentication) {
         CourseVideo video = findVideoOrThrow(courseId, videoId);
-        courseService.requireCanView(video.getCourse(), authentication);
         return courseVideoMapper.toDto(video);
     }
 
     // файл загружается отдельным запросом (uploadVideoFile), как картинки и аудио у сообщений
     @Transactional
     public CourseVideoDto createVideo(Long courseId, CourseVideoCreateRequest request, Authentication authentication) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + courseId));
+        Course course = courseService.findCourseOrThrow(courseId);
         courseService.requireCanModify(course, authentication);
 
         CourseVideo video = new CourseVideo();

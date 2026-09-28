@@ -9,7 +9,9 @@ public record CourseDto(
         Integer position,
         CourseType type,
         Long ownerId, // null для OFFICIAL
+        String ownerName, // имя создателя; null для OFFICIAL и у пользователей без имени
         int lessonCount,
-        int videoCount
+        int videoCount,
+        boolean saved // курс в сохранённых у текущего пользователя
 ) {
 }
