@@ -1,0 +1,49 @@
+{
+  "id": -1,
+  "title": "Кыргызский",
+  "description": "кырг язык",
+  "position": 0,
+  "items": [
+    {
+      "kind": "LESSON",
+      "id": -1,
+      "title": "привет",
+      "description": "курс о кырг",
+      "items": [
+        {
+          "kind": "MESSAGE",
+          "text": "Салам",
+          "image": "kyrgyz/salam.jpg",
+          "audio": "kyrgyz/salam.mp3"
+        },
+        {
+          "kind": "QUESTION",
+          "text": "кто сильнее сыймык или махир",
+          "audio": "kyrgyz/question-order.mp3",
+          "type": "ORDER",
+          "options": [
+            { "text": "сыймык", "correctPosition": 0 },
+            { "text": "махир", "correctPosition": 1 }
+          ]
+        },
+        {
+          "kind": "QUESTION",
+          "text": "кто красивее камила или айпери",
+          "audio": "kyrgyz/question-multiple.mp3",
+          "type": "MULTIPLE_CHOICE",
+          "options": [
+            { "text": "Камила", "correct": false },
+            { "text": "Айпери", "correct": true }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "VIDEO",
+      "id": -1,
+      "title": "kpop",
+      "description": "kpop",
+      "video": "kyrgyz/kpop.mp4"
+    }
+  ]
+}

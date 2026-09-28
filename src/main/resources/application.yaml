@@ -45,6 +45,12 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.orm.schema: DEBUG
 
+# Картинки, аудио и видео официальных курсов лежат в этой папке на сервере (не в MinIO и не в jar);
+# пути image/audio/video в content/official/*.json — относительно неё. Относительный путь считается
+# от папки, из которой запущен бэкенд (kyrgyz-learn/), в Docker — от /app
+official-content:
+  media-dir: ${OFFICIAL_MEDIA_DIR:./official-media}
+
 minio:
   url: http://${MINIO_HOST:localhost}:${MINIO_API_PORT:9000}
   public-url: http://${MINIO_PUBLIC_HOST:localhost}:${MINIO_API_PORT:9000}

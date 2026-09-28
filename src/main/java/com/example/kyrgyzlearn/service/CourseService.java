@@ -1,5 +1,6 @@
 package com.example.kyrgyzlearn.service;
 
+import com.example.kyrgyzlearn.content.OfficialContent;
 import com.example.kyrgyzlearn.dto.course.CourseCreateRequest;
 import com.example.kyrgyzlearn.dto.course.CourseDto;
 import com.example.kyrgyzlearn.dto.course.CourseUpdateRequest;
@@ -20,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -27,22 +30,25 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CourseService {
 
-    private static final String ADMIN_AUTHORITY = "ROLE_ADMIN";
-
     private final CourseRepository courseRepository;
     private final SavedCourseRepository savedCourseRepository;
+    private final OfficialContent officialContent;
     private final LessonMediaCleaner lessonMediaCleaner;
     private final CourseMapper courseMapper;
 
+    // Главная и «Прочее»: сначала официальные курсы (из файлов, в своём порядке), затем свои USER-курсы из БД.
+    // Чужие личные курсы здесь не показываются — их находят через search.
     @Transactional(readOnly = true)
     public Page<CourseDto> getAllCourses(Pageable pageable, Authentication authentication) {
         Long userId = currentUserIdOrNull(authentication);
         Set<Long> savedIds = savedCourseIds(userId);
-        if (isAdmin(authentication)) {
-            return courseRepository.findAll(pageable).map(course -> toDto(course, savedIds));
+
+        List<CourseDto> all = new ArrayList<>();
+        officialContent.getCourses().forEach(course -> all.add(toDto(course, savedIds)));
+        if (userId != null) {
+            courseRepository.findByOwnerId(userId, pageable.getSort()).forEach(course -> all.add(toDto(course, savedIds)));
         }
-        // не-админ видит только OFFICIAL-курсы + свои собственные USER-курсы
-        return courseRepository.findVisibleTo(userId, pageable).map(course -> toDto(course, savedIds));
+        return Pages.of(all, pageable);
     }
 
     // «Поиск»: личные курсы всех пользователей по названию, постранично (официальные — на главной)
@@ -60,20 +66,15 @@ public class CourseService {
         return toDto(findCourseOrThrow(id), savedCourseIds(currentUserIdOrNull(authentication)));
     }
 
+    // через API создаются только личные курсы (у админа тоже) — официальные лежат в content/official
     @Transactional
     public CourseDto createCourse(CourseCreateRequest request, Authentication authentication) {
         Course course = new Course();
         course.setTitle(request.title());
         course.setDescription(request.description());
         course.setPosition(request.position() != null ? request.position() : 0);
-
-        if (isAdmin(authentication)) {
-            course.setType(CourseType.OFFICIAL);
-            course.setOwner(null);
-        } else {
-            course.setType(CourseType.USER);
-            course.setOwner(getCurrentUser(authentication));
-        }
+        course.setType(CourseType.USER);
+        course.setOwner(getCurrentUser(authentication));
 
         return courseMapper.toDto(courseRepository.save(course), false);
     }
@@ -122,12 +123,12 @@ public class CourseService {
     // Публичный — его же вызывают LessonService, QuestionService и др. для проверки прав
     // на урок через его course, так как правило одно и то же: "не в своём курсе — нельзя".
 
+    // официальные курсы только для чтения — даже для админа: они не в БД, а в файлах
+    // (заодно это гарантирует, что их объекты из OfficialContent никогда не попадут в save/delete)
     public void requireCanModify(Course course, Authentication authentication) {
         if (course.getType() == CourseType.OFFICIAL) {
-            if (!isAdmin(authentication)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only admin can modify official courses");
-            }
-            return;
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Official courses are read-only: they are edited in content/official on the backend");
         }
 
         Long userId = currentUserIdOrNull(authentication);
@@ -135,11 +136,6 @@ public class CourseService {
         if (!Objects.equals(userId, ownerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only modify your own courses");
         }
-    }
-
-    private boolean isAdmin(Authentication authentication) {
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals(ADMIN_AUTHORITY));
     }
 
     private Long currentUserIdOrNull(Authentication authentication) {
@@ -160,7 +156,8 @@ public class CourseService {
 
     // публичный — им же ищут курс LessonService, CourseVideoService, CourseItemService и SavedCourseService
     public Course findCourseOrThrow(Long id) {
-        return courseRepository.findById(id)
+        return officialContent.findCourse(id)
+                .or(() -> courseRepository.findById(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found: " + id));
     }
 

@@ -1,5 +1,6 @@
 package com.example.kyrgyzlearn.service;
 
+import com.example.kyrgyzlearn.content.OfficialContent;
 import com.example.kyrgyzlearn.dto.video.CourseVideoCreateRequest;
 import com.example.kyrgyzlearn.dto.video.CourseVideoDto;
 import com.example.kyrgyzlearn.dto.video.CourseVideoUpdateRequest;
@@ -21,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class CourseVideoService {
 
     private final CourseVideoRepository courseVideoRepository;
+    private final OfficialContent officialContent;
     private final CourseService courseService;
     private final CourseItemService courseItemService;
     private final FileStorageService fileStorageService;
@@ -110,7 +112,8 @@ public class CourseVideoService {
     // ---------- Вспомогательные методы ----------
 
     private CourseVideo findVideoOrThrow(Long courseId, Long videoId) {
-        CourseVideo video = courseVideoRepository.findById(videoId)
+        CourseVideo video = officialContent.findVideo(videoId)
+                .or(() -> courseVideoRepository.findById(videoId))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoId));
 
         if (!video.getCourse().getId().equals(courseId)) {

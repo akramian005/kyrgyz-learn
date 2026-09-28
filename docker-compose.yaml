@@ -7,6 +7,8 @@ services:
 #      - "${SERVER_PORT:-8080}:8080"
 #    env_file:  #прочитать из .env + создать все переменные из .env вне зависимости от объявления в docker-compose
 #      - .env
+#    volumes:
+#      - ./official-media:/app/official-media # медиа официальных курсов (official-content.media-dir)
 #    depends_on:
 #      - postgres
 
