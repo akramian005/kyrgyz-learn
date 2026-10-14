@@ -1,3 +1,5 @@
+name: kyrgyz-learn # имя проекта: от него зависят имена томов, не зависит от названия папки
+
 services:
 
 #  app:
@@ -17,7 +19,7 @@ services:
   #  5432 — порт PostgreSQL внутри контейнера
 #  postgres:
 #    image: postgres:17-alpine
-#    container_name: postgres
+#    container_name: kyrgyz-learn-postgres
 #    ports:
 #      - "${POSTGRES_HOST_PORT:-5433}:5432" # "ПОРТ_ХОСТА:ПОРТ_КОНТЕЙНЕРА"
 #    environment:
@@ -29,7 +31,7 @@ services:
 
   minio:
     image: pgsty/minio:latest
-    container_name: minio
+    container_name: kyrgyz-learn-minio
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
