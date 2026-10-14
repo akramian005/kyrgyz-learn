@@ -35,3 +35,5 @@ build/
 ### Медиа официальных курсов ###
 # картинки, аудио и видео в git не хранятся — копируются на сервер отдельно (см. official-content/README.md)
 official-media/
+
+.DS_Store
