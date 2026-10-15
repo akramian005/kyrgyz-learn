@@ -42,6 +42,17 @@ services:
     volumes:
       - minio_data:/data
 
+  # Сервис озвучки (проект ../kyrgyz-learn-tts). Закомментирован: образ большой (PyTorch, NeMo),
+  # а модель при первом старте скачивается с Hugging Face. Бэкенд ходит в него по TTS_URL.
+#  tts:
+#    build: ../kyrgyz-learn-tts
+#    container_name: kyrgyz-learn-tts
+#    ports:
+#      - "${TTS_PORT:-8000}:8000"
+#    volumes:
+#      - tts_cache:/cache # скачанная модель
+
 volumes:
   postgres_data:
   minio_data:
+#  tts_cache:
