@@ -32,7 +32,8 @@ public class LessonMapper {
                 lesson.getDescription(),
                 lesson.getPosition(),
                 lesson.getItems().size(),
-                completed
+                completed,
+                lesson.getUnitId()
         );
     }
 
@@ -91,7 +92,8 @@ public class LessonMapper {
                 option.getText(),
                 option.getSortOrder(),
                 option.isCorrect(),
-                option.getCorrectPosition()
+                option.getCorrectPosition(),
+                option.getMatchText()
         );
     }
 }

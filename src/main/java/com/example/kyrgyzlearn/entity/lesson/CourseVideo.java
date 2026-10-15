@@ -30,6 +30,9 @@ public class CourseVideo implements CourseItem {
     @Column(nullable = false)
     private Integer position;
 
+    // юнит видео (CourseUnit.id), как у Lesson
+    private Long unitId;
+
     @ManyToOne
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;

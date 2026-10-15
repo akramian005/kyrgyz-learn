@@ -1,62 +1,115 @@
 {
   "id": -1,
-  "title": "Кыргызскийjfjfjfjjfjdjdjdjjdnnd",
-  "description": "в\nвбаюч\nаааав\nва\nва\nва\nв\nаваа\nа\nа\nати\nва\nв",
+  "title": "Кыргызский",
+  "description": "описание\nописание\nописание \nописание\nописание",
   "image": "kyrgyz/ba3d788d-4dcf-4e9c-8450-69fe934e5f10.png",
   "position": 0,
-  "items": [
+  "units": [
     {
-      "kind": "LESSON",
-      "id": -1,
-      "title": "привет",
-      "description": "курс о кырг",
+      "title": "Юнит 1",
       "items": [
         {
-          "kind": "MESSAGE",
-          "text": "Салам",
-          "image": "kyrgyz/salam.jpg",
-          "audio": "kyrgyz/salam.mp3"
-        },
-        {
-          "kind": "QUESTION",
-          "text": "> > > ___кто красивее камила или айпер__и_",
-          "audio": "kyrgyz/question-multiple.mp3",
-          "type": "MULTIPLE_CHOICE",
-          "options": [
+          "kind": "LESSON",
+          "id": -1,
+          "title": "привет",
+          "description": "курс о кырг",
+          "items": [
             {
-              "text": "Камила",
-              "correct": false
+              "kind": "MESSAGE",
+              "text": "Салам",
+              "image": "kyrgyz/salam.jpg",
+              "audio": "kyrgyz/salam.mp3"
             },
             {
-              "text": "Айпери",
-              "correct": true
+              "kind": "QUESTION",
+              "text": "> > > ___кто красивее камила или айпер__и_",
+              "audio": "kyrgyz/question-multiple.mp3",
+              "type": "MULTIPLE_CHOICE",
+              "options": [
+                {
+                  "text": "Камила",
+                  "correct": false
+                },
+                {
+                  "text": "Айпери",
+                  "correct": true
+                }
+              ]
+            },
+            {
+              "kind": "QUESTION",
+              "text": "**кто сильнее сыймык или махир**",
+              "audio": "kyrgyz/question-order.mp3",
+              "type": "ORDER",
+              "options": [
+                {
+                  "text": "сыймык",
+                  "correctPosition": 0
+                },
+                {
+                  "text": "махир",
+                  "correctPosition": 1
+                }
+              ]
+            },
+            {
+              "kind": "QUESTION",
+              "text": "сопоставьте",
+              "type": "MATCHING",
+              "options": [
+                {
+                  "text": "привет",
+                  "matchText": "пока"
+                },
+                {
+                  "text": "спасибо",
+                  "matchText": "пожалуйста"
+                },
+                {
+                  "text": "что",
+                  "matchText": "ничего"
+                }
+              ]
             }
           ]
         },
         {
-          "kind": "QUESTION",
-          "text": "**кто сильнее сыймык или махир**",
-          "audio": "kyrgyz/question-order.mp3",
-          "type": "ORDER",
-          "options": [
+          "kind": "LESSON",
+          "id": -2,
+          "items": [
             {
-              "text": "сыймык",
-              "correctPosition": 0
-            },
-            {
-              "text": "махир",
-              "correctPosition": 1
+              "kind": "QUESTION",
+              "text": "текст вопроса",
+              "type": "SINGLE_CHOICE",
+              "options": [
+                {
+                  "text": "привет",
+                  "correct": true
+                },
+                {
+                  "text": "пока",
+                  "correct": false
+                }
+              ]
             }
           ]
         }
       ]
     },
     {
-      "kind": "VIDEO",
-      "id": -1,
-      "title": "kpop",
-      "description": "# ILLIT (아일릿)\n\n**ILLIT** — южнокорейская _женская_ группа агентства **BELIFT LAB** (входит в HYBE).\nГруппа собрана по итогам шоу `R U Next?` (2023).\n\n## Участницы\n\n- **Юна** (Yunah)\n- **Минджу** (Minju)\n- **Мока** (Moka) — из Японии\n- **Ироха** (Iroha) — из Японии, _младшая_\n\n## Главные релизы\n\n1. **Magnetic** — дебютный сингл, 2024\n2. **Cherish (My Love)** — 2024\n3. ~~Первый альбом~~ Первый мини-альбом — `SUPER REAL ME`\n\n> Magnetic стала одной из самых успешных дебютных песен K-pop групп.\n\n---\n\n### Полезные слова\n\n- **ыр** — песня\n- **топ** — группа\n- **бий** — танец\n\nПодробнее: [ILLIT в Википедии](https://en.wikipedia.org/wiki/Illit)",
-      "video": "kyrgyz/kpop.mp4"
+      "title": "Юнит 2",
+      "items": [
+        {
+          "kind": "LESSON",
+          "id": -3,
+          "items": [ ]
+        },
+        {
+          "kind": "LESSON",
+          "id": -4,
+          "items": [ ]
+        }
+      ]
     }
   ]
 }

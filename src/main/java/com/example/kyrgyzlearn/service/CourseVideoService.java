@@ -54,7 +54,7 @@ public class CourseVideoService {
         video.setCourse(course);
         video.setTitle(request.title());
         video.setDescription(request.description());
-        courseItemService.insert(course, video, request.position());
+        courseItemService.insert(course, video, request.unitId(), request.position());
 
         if (course.getType() == CourseType.OFFICIAL) {
             course.getVideos().add(video);

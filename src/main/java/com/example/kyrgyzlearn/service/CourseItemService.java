@@ -5,6 +5,7 @@ import com.example.kyrgyzlearn.dto.course.CourseItemMoveRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseItem;
 import com.example.kyrgyzlearn.entity.lesson.CourseItemKind;
+import com.example.kyrgyzlearn.entity.lesson.CourseUnit;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.mapper.CourseVideoMapper;
@@ -18,16 +19,19 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-// Общий порядок уроков и видео внутри курса.
-// У Lesson и CourseVideo одна нумерация position, список собирается из двух таблиц и сортируется.
+// Порядок уроков и видео внутри курса. Они разложены по юнитам (unitId), у Lesson и CourseVideo
+// одна нумерация position на весь курс: сначала все элементы первого юнита, потом второго и т.д.
+// Список собирается из двух таблиц и сортируется: по порядку юнита, потом по position.
 @Service
 @RequiredArgsConstructor
 public class CourseItemService {
 
     // при одинаковой позиции (старые данные, ручной PATCH position у урока) — сначала урок, потом по id
-    private static final Comparator<CourseItem> ORDER = Comparator
+    private static final Comparator<CourseItem> POSITION_ORDER = Comparator
             .comparing(CourseItem::getPosition, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(item -> item instanceof Lesson ? 0 : 1)
             .thenComparing(CourseItem::getId, Comparator.nullsLast(Comparator.naturalOrder()));
@@ -43,44 +47,99 @@ public class CourseItemService {
         return toDtos(orderedItems(course), progressService.completed(authentication));
     }
 
-    // перемещает урок или видео на новую позицию, остальные элементы сдвигаются; возвращает новый порядок
+    // перемещает урок или видео на позицию внутри юнита (можно в другой юнит), остальные элементы сдвигаются;
+    // возвращает новый порядок
     @Transactional
     public List<CourseItemDto> moveItem(Long courseId, CourseItemMoveRequest request, Authentication authentication) {
         Course course = courseService.findCourseOrThrow(courseId);
         courseService.requireCanModify(course, authentication);
 
-        List<CourseItem> items = orderedItems(course);
-        CourseItem item = items.stream()
+        Map<Long, List<CourseItem>> byUnit = itemsByUnit(course);
+        CourseItem item = byUnit.values().stream()
+                .flatMap(List::stream)
                 .filter(i -> matches(i, request.kind(), request.id()))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         request.kind() + " " + request.id() + " not found in course " + courseId));
 
-        items.remove(item);
-        items.add(clampIndex(request.position(), items.size()), item);
-        renumber(items);
+        Long targetUnitId = request.unitId() != null ? requireUnit(course, request.unitId()).getId() : item.getUnitId();
+        byUnit.get(item.getUnitId()).remove(item);
+        item.setUnitId(targetUnitId);
+        List<CourseItem> target = byUnit.get(targetUnitId);
+        target.add(clampIndex(request.position(), target.size()), item);
+        renumber(byUnit);
         courseService.saveIfOfficial(course); // личный курс сохранит JPA сам (dirty checking)
 
-        return toDtos(items, progressService.completed(authentication));
+        return toDtos(orderedItems(course), progressService.completed(authentication));
     }
 
-    // Для LessonService и CourseVideoService: ставит новый элемент (ещё не добавленный в курс)
-    // на позицию position (null — в конец) и перенумеровывает все элементы курса 0..n-1
-    public void insert(Course course, CourseItem newItem, Integer position) {
-        List<CourseItem> items = orderedItems(course);
+    // Для LessonService и CourseVideoService: ставит новый элемент (ещё не добавленный в курс) в юнит unitId
+    // (null — в последний) на позицию position внутри юнита (null — в конец) и перенумеровывает элементы курса
+    public void insert(Course course, CourseItem newItem, Long unitId, Integer position) {
+        CourseUnit unit = unitId != null ? requireUnit(course, unitId) : lastUnit(course);
+        Map<Long, List<CourseItem>> byUnit = itemsByUnit(course);
+        List<CourseItem> items = byUnit.get(unit.getId());
         int index = position == null ? items.size() : clampIndex(position, items.size());
 
+        newItem.setUnitId(unit.getId());
         items.add(index, newItem);
-        renumber(items);
+        renumber(byUnit);
+    }
+
+    // ---------- Для CourseUnitService ----------
+
+    // уроки и видео по юнитам в порядке юнитов; элементы без юнита (или из удалённого юнита) — под ключом null в начале
+    public Map<Long, List<CourseItem>> itemsByUnit(Course course) {
+        Map<Long, List<CourseItem>> byUnit = new LinkedHashMap<>();
+        List<CourseItem> orphans = new ArrayList<>();
+        byUnit.put(null, orphans);
+        for (CourseUnit unit : course.getUnits()) {
+            byUnit.put(unit.getId(), new ArrayList<>());
+        }
+
+        List<CourseItem> all = new ArrayList<>(course.getLessons());
+        all.addAll(course.getVideos());
+        all.sort(POSITION_ORDER);
+        for (CourseItem item : all) {
+            byUnit.getOrDefault(item.getUnitId(), orphans).add(item);
+        }
+        return byUnit;
+    }
+
+    // сквозная нумерация 0..n-1 по порядку юнитов
+    public void renumber(Map<Long, List<CourseItem>> byUnit) {
+        int position = 0;
+        for (List<CourseItem> items : byUnit.values()) {
+            for (CourseItem item : items) {
+                item.setPosition(position++);
+            }
+        }
+    }
+
+    public CourseUnit requireUnit(Course course, Long unitId) {
+        return course.getUnits().stream()
+                .filter(u -> u.getId() != null && u.getId().equals(unitId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Unit " + unitId + " not found in course " + course.getId()));
+    }
+
+    public List<CourseItemDto> toDtos(List<CourseItem> items, ProgressService.Completed completed) {
+        return items.stream().map(item -> toDto(item, completed)).toList();
     }
 
     // ---------- Вспомогательные методы ----------
 
     private List<CourseItem> orderedItems(Course course) {
-        List<CourseItem> items = new ArrayList<>(course.getLessons());
-        items.addAll(course.getVideos());
-        items.sort(ORDER);
-        return items;
+        return itemsByUnit(course).values().stream().flatMap(List::stream).toList();
+    }
+
+    private CourseUnit lastUnit(Course course) {
+        List<CourseUnit> units = course.getUnits();
+        if (units.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Course has no units: create a unit first");
+        }
+        return units.getLast();
     }
 
     private boolean matches(CourseItem item, CourseItemKind kind, Long id) {
@@ -91,18 +150,8 @@ public class CourseItemService {
         return kindMatches && item.getId().equals(id);
     }
 
-    private void renumber(List<CourseItem> items) {
-        for (int i = 0; i < items.size(); i++) {
-            items.get(i).setPosition(i);
-        }
-    }
-
     private int clampIndex(int position, int size) {
         return Math.max(0, Math.min(position, size));
-    }
-
-    private List<CourseItemDto> toDtos(List<CourseItem> items, ProgressService.Completed completed) {
-        return items.stream().map(item -> toDto(item, completed)).toList();
     }
 
     private CourseItemDto toDto(CourseItem item, ProgressService.Completed completed) {

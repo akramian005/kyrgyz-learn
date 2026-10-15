@@ -62,10 +62,10 @@ public class LessonService {
 
         Lesson lesson = new Lesson();
         lesson.setCourse(course);
-        lesson.setTitle(request.title());
-        lesson.setDescription(request.description());
-        // порядок общий с видео курса: null — в конец, иначе сдвигаем остальные
-        courseItemService.insert(course, lesson, request.position());
+        lesson.setTitle(blankToNull(request.title()));
+        lesson.setDescription(blankToNull(request.description()));
+        // порядок общий с видео курса: null — в конец юнита, иначе сдвигаем остальные
+        courseItemService.insert(course, lesson, request.unitId(), request.position());
 
         if (course.getType() == CourseType.OFFICIAL) {
             course.getLessons().add(lesson);
@@ -184,5 +184,9 @@ public class LessonService {
 
     private int clampIndex(int position, int size) {
         return Math.max(0, Math.min(position, size));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }
