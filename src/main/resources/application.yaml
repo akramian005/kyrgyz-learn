@@ -59,6 +59,10 @@ official-content:
 dev-data:
   enabled: ${DEV_DATA_ENABLED:true}
 
+# Сервис озвучки kyrgyz-learn-tts (POST /tts {text} -> wav), см. TtsService
+tts:
+  url: ${TTS_URL:http://localhost:8000}
+
 minio:
   url: http://${MINIO_HOST:localhost}:${MINIO_API_PORT:9000}
   public-url: http://${MINIO_PUBLIC_HOST:localhost}:${MINIO_API_PORT:9000}
