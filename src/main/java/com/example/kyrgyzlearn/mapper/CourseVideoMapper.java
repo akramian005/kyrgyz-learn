@@ -19,7 +19,8 @@ public class CourseVideoMapper {
                 video.getTitle(),
                 video.getDescription(),
                 mediaUrls.url(video.getVideoObjectKey(), video.getCourse()),
-                watched
+                watched,
+                video.getUnitId()
         );
     }
 }

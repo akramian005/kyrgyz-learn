@@ -8,7 +8,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.List;
 
 // Формат файла официального курса: official-content/*.json (один файл — один курс).
-// Порядок уроков/видео в курсе и вопросов/сообщений в уроке — порядок в массиве items.
+// Курс состоит из юнитов (units), в юните — уроки и видео (items). Порядок — порядок в массивах.
+// Старый формат без юнитов (items прямо в курсе) читается как один юнит «Юнит 1» и при сохранении переписывается.
 // id курса, урока и видео пишутся в файле явно и должны быть отрицательными (так они не пересекаются
 // с id из БД) и не меняться со временем. id вопросов, сообщений и вариантов ответа раздаёт OfficialContent.
 // Медиа (image, audio, video) — пути к файлам относительно official-content.media-dir.
@@ -20,8 +21,14 @@ public record OfficialCourseFile(
         String description,
         String image, // картинка курса — путь относительно media-dir
         Integer position,
+        List<UnitFile> units,
+        // старый формат: уроки и видео без юнитов — только для чтения, при записи всегда null
         List<Item> items
 ) {
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record UnitFile(String title, List<Item> items) {
+    }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "kind")
     @JsonSubTypes({
@@ -55,8 +62,8 @@ public record OfficialCourseFile(
     public record QuestionFile(String text, String audio, QuestionType type, List<OptionFile> options) implements LessonItem {
     }
 
-    // correct — для SINGLE_CHOICE / MULTIPLE_CHOICE, correctPosition — для ORDER (см. AnswerOption)
+    // correct — для SINGLE_CHOICE / MULTIPLE_CHOICE, correctPosition — для ORDER, matchText — для MATCHING (см. AnswerOption)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record OptionFile(String text, Boolean correct, Integer correctPosition) {
+    public record OptionFile(String text, Boolean correct, Integer correctPosition, String matchText) {
     }
 }

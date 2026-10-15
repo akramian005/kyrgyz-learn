@@ -4,11 +4,13 @@ import com.example.kyrgyzlearn.content.OfficialCourseFile.LessonFile;
 import com.example.kyrgyzlearn.content.OfficialCourseFile.MessageFile;
 import com.example.kyrgyzlearn.content.OfficialCourseFile.OptionFile;
 import com.example.kyrgyzlearn.content.OfficialCourseFile.QuestionFile;
+import com.example.kyrgyzlearn.content.OfficialCourseFile.UnitFile;
 import com.example.kyrgyzlearn.content.OfficialCourseFile.VideoFile;
 import com.example.kyrgyzlearn.entity.lesson.AnswerOption;
 import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseItem;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
+import com.example.kyrgyzlearn.entity.lesson.CourseUnit;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.LessonItem;
@@ -34,6 +36,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +59,9 @@ public class OfficialContent {
             .thenComparing(item -> item instanceof Lesson ? 0 : 1)
             .thenComparing(CourseItem::getId, Comparator.nullsLast(Comparator.naturalOrder()));
 
+    // название юнита для курсов из файлов старого формата (без юнитов)
+    public static final String DEFAULT_UNIT_TITLE = "Юнит 1";
+
     private final Path dir;
     private final Path mediaRoot;
     // тот же вид, что у файлов, написанных руками: "id": -1 и каждый элемент массива с новой строки —
@@ -75,7 +81,8 @@ public class OfficialContent {
     // пути к медиа из всех файлов — проверяем разом после загрузки, чтобы показать все пропавшие файлы
     private final List<String> mediaPaths = new ArrayList<>();
 
-    // id вопросов, сообщений и вариантов не пишутся в файлах — раздаём по порядку при загрузке и создании
+    // id юнитов, вопросов, сообщений и вариантов не пишутся в файлах — раздаём по порядку при загрузке и создании
+    private long nextUnitId = -1;
     private long nextItemId = -1;
     private long nextOptionId = -1;
 
@@ -219,11 +226,30 @@ public class OfficialContent {
         course.setPosition(file.position() != null ? file.position() : 0);
         course.setType(CourseType.OFFICIAL);
 
-        List<OfficialCourseFile.Item> items = listOrEmpty(file.items());
-        for (int i = 0; i < items.size(); i++) {
-            switch (items.get(i)) {
-                case LessonFile l -> course.getLessons().add(buildLesson(l, course, i));
-                case VideoFile v -> course.getVideos().add(buildVideo(v, course, i));
+        // старый формат без юнитов — все уроки и видео в один юнит
+        List<UnitFile> units = file.units() != null ? file.units()
+                : file.items() != null ? List.of(new UnitFile(DEFAULT_UNIT_TITLE, file.items())) : List.of();
+        int position = 0;
+        for (int u = 0; u < units.size(); u++) {
+            CourseUnit unit = new CourseUnit();
+            unit.setId(nextUnitId--);
+            unit.setTitle(requireText(units.get(u).title(), "course " + file.id() + " unit " + u + " title"));
+            unit.setPosition(u);
+            unit.setCourse(course);
+            course.getUnits().add(unit);
+
+            for (OfficialCourseFile.Item item : listOrEmpty(units.get(u).items())) {
+                CourseItem built = switch (item) {
+                    case LessonFile l -> buildLesson(l, course, position);
+                    case VideoFile v -> buildVideo(v, course, position);
+                };
+                built.setUnitId(unit.getId());
+                if (built instanceof Lesson lesson) {
+                    course.getLessons().add(lesson);
+                } else {
+                    course.getVideos().add((CourseVideo) built);
+                }
+                position++;
             }
         }
         return course;
@@ -232,7 +258,8 @@ public class OfficialContent {
     private Lesson buildLesson(LessonFile file, Course course, int position) {
         Lesson lesson = new Lesson();
         lesson.setId(requireNewId(file.id(), "lesson", Stream.concat(lessons(), course.getLessons().stream()).map(Lesson::getId)));
-        lesson.setTitle(requireText(file.title(), "lesson " + file.id() + " title"));
+        // у урока название не обязательно — на экране курса он «Урок N» своего юнита
+        lesson.setTitle(blankToNull(file.title()));
         lesson.setDescription(file.description());
         lesson.setPosition(position);
         lesson.setCourse(course);
@@ -290,6 +317,7 @@ public class OfficialContent {
             option.setSortOrder(i);
             option.setCorrect(Boolean.TRUE.equals(optionFile.correct()));
             option.setCorrectPosition(optionFile.correctPosition());
+            option.setMatchText(optionFile.matchText());
             option.setQuestion(question);
             question.getOptions().add(option);
         }
@@ -303,11 +331,28 @@ public class OfficialContent {
         ordered.addAll(course.getVideos());
         ordered.sort(ITEM_ORDER);
 
-        List<OfficialCourseFile.Item> items = ordered.stream()
-                .map(item -> item instanceof Lesson lesson ? toFile(lesson) : toFile((CourseVideo) item))
-                .toList();
+        // элементы по юнитам; без юнита (так быть не должно) — в первый юнит, чтобы не потерялись
+        Map<Long, List<OfficialCourseFile.Item>> byUnit = new LinkedHashMap<>();
+        course.getUnits().forEach(unit -> byUnit.put(unit.getId(), new ArrayList<>()));
+        List<OfficialCourseFile.Item> orphans = new ArrayList<>();
+        for (CourseItem item : ordered) {
+            OfficialCourseFile.Item file = item instanceof Lesson lesson ? toFile(lesson) : toFile((CourseVideo) item);
+            byUnit.getOrDefault(item.getUnitId(), orphans).add(file);
+        }
+
+        List<UnitFile> units = new ArrayList<>();
+        for (CourseUnit unit : course.getUnits()) {
+            List<OfficialCourseFile.Item> items = byUnit.get(unit.getId());
+            if (units.isEmpty()) {
+                items.addAll(0, orphans);
+            }
+            units.add(new UnitFile(unit.getTitle(), items));
+        }
+        if (units.isEmpty() && !orphans.isEmpty()) {
+            units.add(new UnitFile(DEFAULT_UNIT_TITLE, orphans));
+        }
         return new OfficialCourseFile(course.getId(), course.getTitle(), blankToNull(course.getDescription()),
-                course.getImageObjectKey(), course.getPosition(), items);
+                course.getImageObjectKey(), course.getPosition(), units, null);
     }
 
     private OfficialCourseFile.Item toFile(Lesson lesson) {
@@ -319,7 +364,7 @@ public class OfficialContent {
                     default -> throw new IllegalStateException("Unknown lesson item: " + item.getClass());
                 })
                 .toList();
-        return new LessonFile(lesson.getId(), lesson.getTitle(), blankToNull(lesson.getDescription()), items);
+        return new LessonFile(lesson.getId(), blankToNull(lesson.getTitle()), blankToNull(lesson.getDescription()), items);
     }
 
     private OfficialCourseFile.Item toFile(CourseVideo video) {
@@ -328,12 +373,14 @@ public class OfficialContent {
 
     private QuestionFile toFile(Question question) {
         boolean order = question.getType() == QuestionType.ORDER;
+        boolean matching = question.getType() == QuestionType.MATCHING;
         List<OptionFile> options = question.getOptions().stream()
                 .sorted(Comparator.comparing(AnswerOption::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder())))
                 // в файл — только то, что важно для типа вопроса
                 .map(o -> new OptionFile(o.getText(),
-                        order ? null : o.isCorrect(),
-                        order ? o.getCorrectPosition() : null))
+                        order || matching ? null : o.isCorrect(),
+                        order ? o.getCorrectPosition() : null,
+                        matching ? o.getMatchText() : null))
                 .toList();
         return new QuestionFile(question.getText(), question.getAudioObjectKey(), question.getType(), options);
     }
@@ -341,6 +388,11 @@ public class OfficialContent {
     // ---------- Вспомогательные ----------
 
     private void assignIds(Course course) {
+        for (CourseUnit unit : course.getUnits()) {
+            if (unit.getId() == null) {
+                unit.setId(nextUnitId--);
+            }
+        }
         long lessonId = Math.min(minId(lessons().map(Lesson::getId)), 0);
         for (Lesson lesson : course.getLessons()) {
             if (lesson.getId() == null) {

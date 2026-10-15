@@ -5,6 +5,7 @@ public record AnswerOptionDto(
         String text,
         Integer sortOrder,
         boolean correct,
-        Integer correctPosition
+        Integer correctPosition,
+        String matchText
 ) {
 }

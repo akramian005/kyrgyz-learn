@@ -12,6 +12,7 @@ import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.entity.lesson.Question;
+import com.example.kyrgyzlearn.entity.lesson.QuestionType;
 import com.example.kyrgyzlearn.mapper.LessonMapper;
 import com.example.kyrgyzlearn.repository.AnswerOptionRepository;
 import com.example.kyrgyzlearn.repository.QuestionRepository;
@@ -49,6 +50,7 @@ public class QuestionService {
         question.setType(request.type());
 
         if (request.options() != null) {
+            requireMatchingLimit(request.type(), request.options().size());
             int i = 0;
             for (AnswerOptionCreateRequest optionRequest : request.options()) {
                 AnswerOption option = new AnswerOption();
@@ -56,6 +58,7 @@ public class QuestionService {
                 option.setText(optionRequest.text());
                 option.setCorrect(optionRequest.correct());
                 option.setCorrectPosition(optionRequest.correctPosition());
+                option.setMatchText(optionRequest.matchText());
                 option.setSortOrder(i++);
                 question.getOptions().add(option);
             }
@@ -137,12 +140,14 @@ public class QuestionService {
     public AnswerOptionDto addAnswerOption(Long lessonId, Long questionId, AnswerOptionCreateRequest request, Authentication authentication) {
         Question question = findQuestionOrThrow(lessonId, questionId);
         courseService.requireCanModify(question.getLesson().getCourse(), authentication);
+        requireMatchingLimit(question.getType(), question.getOptions().size() + 1);
 
         AnswerOption option = new AnswerOption();
         option.setQuestion(question);
         option.setText(request.text());
         option.setCorrect(request.correct());
         option.setCorrectPosition(request.correctPosition());
+        option.setMatchText(request.matchText());
         option.setSortOrder(question.getOptions().size());
 
         if (courseOf(question).getType() == CourseType.OFFICIAL) {
@@ -170,6 +175,9 @@ public class QuestionService {
         if (request.correctPosition().isPresent()) {
             option.setCorrectPosition(request.correctPosition().get());
         }
+        if (request.matchText().isPresent()) {
+            option.setMatchText(request.matchText().get());
+        }
 
         if (courseService.saveIfOfficial(courseOf(option.getQuestion()))) {
             return lessonMapper.toAnswerOptionDto(option);
@@ -192,6 +200,14 @@ public class QuestionService {
     }
 
     // ---------- Вспомогательные методы ----------
+
+    // в «Сопоставлении» не больше MAX_MATCHING_PAIRS пар, иначе столбцы не помещаются на экран телефона
+    private static void requireMatchingLimit(QuestionType type, int optionCount) {
+        if (type == QuestionType.MATCHING && optionCount > QuestionType.MAX_MATCHING_PAIRS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Matching question can have at most " + QuestionType.MAX_MATCHING_PAIRS + " pairs");
+        }
+    }
 
     private Question findQuestionOrThrow(Long lessonId, Long questionId) {
         Question question = officialContent.findQuestion(questionId)

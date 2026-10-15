@@ -11,7 +11,11 @@ public record CourseItemMoveRequest(
         @NotNull(message = "id is required")
         Long id,
 
+        // место внутри юнита
         @NotNull(message = "position is required")
-        Integer position
+        Integer position,
+
+        // в какой юнит перенести; null — остаться в своём
+        Long unitId
 ) {
 }

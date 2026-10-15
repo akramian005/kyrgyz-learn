@@ -6,6 +6,7 @@ import com.example.kyrgyzlearn.dto.course.CourseDto;
 import com.example.kyrgyzlearn.dto.course.CourseUpdateRequest;
 import com.example.kyrgyzlearn.entity.lesson.Course;
 import com.example.kyrgyzlearn.entity.lesson.CourseType;
+import com.example.kyrgyzlearn.entity.lesson.CourseUnit;
 import com.example.kyrgyzlearn.entity.lesson.CourseVideo;
 import com.example.kyrgyzlearn.entity.lesson.Lesson;
 import com.example.kyrgyzlearn.mapper.CourseMapper;
@@ -83,6 +84,13 @@ public class CourseService {
         course.setTitle(request.title());
         course.setDescription(request.description());
         course.setPosition(request.position() != null ? request.position() : 0);
+
+        // у нового курса сразу есть первый юнит — в него добавляются уроки и видео
+        CourseUnit unit = new CourseUnit();
+        unit.setTitle(OfficialContent.DEFAULT_UNIT_TITLE);
+        unit.setPosition(0);
+        unit.setCourse(course);
+        course.getUnits().add(unit);
 
         if (Boolean.TRUE.equals(request.official())) {
             requireAdmin(authentication);

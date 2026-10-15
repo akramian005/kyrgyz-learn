@@ -48,4 +48,9 @@ public class Course {
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<CourseVideo> videos = new ArrayList<>();
+
+    // юниты по порядку; уроки и видео ссылаются на свой юнит полем unitId
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<CourseUnit> units = new ArrayList<>();
 }

@@ -27,6 +27,9 @@ public class AnswerOption {
     // null — вариант не входит в правильный ответ (может быть "отвлекающим")
     private Integer correctPosition;
 
+    // используется для MATCHING: вторая половина пары, с которой ученик должен сопоставить text
+    private String matchText;
+
     @ManyToOne
     @JoinColumn(name = "question_id", nullable = false)
     private Question question;

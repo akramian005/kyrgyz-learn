@@ -27,6 +27,10 @@ public class Lesson implements CourseItem {
     // порядок урока внутри курса — общий с видео (см. CourseItem)
     private Integer position;
 
+    // юнит урока (CourseUnit.id). Просто id, без внешнего ключа: юниты и уроки удаляются вместе с курсом,
+    // и порядок их удаления не важен
+    private Long unitId;
+
     @ManyToOne
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;

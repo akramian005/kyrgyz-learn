@@ -93,7 +93,8 @@ public class QuestionController {
         AnswerOptionUpdateRequest request = new AnswerOptionUpdateRequest(
                 extractString(body, "text"),
                 extractBoolean(body, "correct"),
-                extractInteger(body, "correctPosition")
+                extractInteger(body, "correctPosition"),
+                extractString(body, "matchText")
         );
         return ResponseEntity.ok(questionService.updateAnswerOption(lessonId, questionId, optionId, request, authentication));
     }

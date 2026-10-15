@@ -32,6 +32,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ProgressService {
 
+    // опыт: за каждый пройденный урок и за каждый пройденный курс
+    public static final int LESSON_XP = 5;
+    public static final int COURSE_XP = 20;
+
     private final LessonProgressRepository lessonProgressRepository;
     private final VideoProgressRepository videoProgressRepository;
     private final UserRepository userRepository;
@@ -106,7 +110,8 @@ public class ProgressService {
     }
 
     // считаем по текущему составу курсов: удалённые курсы и уроки (например, убранные из файлов
-    // официального курса) не учитываются, а новый урок или видео в курсе снимает с курса отметку «пройден»
+    // официального курса) не учитываются, а новый урок или видео в курсе снимает с курса отметку «пройден».
+    // XP тоже считается отсюда, а не копится отдельно: повторное прохождение урока его не добавляет
     @Transactional(readOnly = true)
     public ProgressDto getProgress(Authentication authentication) {
         Long userId = requireUserId(authentication);
@@ -129,7 +134,7 @@ public class ProgressService {
                 courses++;
             }
         }
-        return new ProgressDto(lessons, courses);
+        return new ProgressDto(lessons, courses, lessons * LESSON_XP + courses * COURSE_XP);
     }
 
     // уроки, видео и курсы из БД удаляются вместе со своим прогрессом

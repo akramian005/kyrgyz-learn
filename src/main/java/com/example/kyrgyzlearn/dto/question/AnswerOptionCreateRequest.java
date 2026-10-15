@@ -9,6 +9,9 @@ public record AnswerOptionCreateRequest(
         boolean correct,
 
         // заполняется только для вопросов типа ORDER
-        Integer correctPosition
+        Integer correctPosition,
+
+        // заполняется только для вопросов типа MATCHING
+        String matchText
 ) {
 }
